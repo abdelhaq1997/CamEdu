@@ -1,899 +1,984 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-<title>لعبة الكلمات العربية - النسخة المطورة</title>
-
-<!-- PWA Meta Tags -->
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#1a1a2e">
-<!-- Inline Manifest for single-file PWA -->
-<link rel="manifest" href="data:application/manifest+json;charset=utf-8,%7B%22name%22%3A%22%D9%84%D8%B9%D8%A8%D8%A9%20%D8%A7%D9%84%D9%83%D9%84%D9%85%D8%A7%D8%AA%20%D8%A7%D9%84%D9%86%D8%AD%D9%88%D9%8A%D8%A9%22%2C%22short_name%22%3A%22%D8%B5%D9%8A%D8%AF%20%D8%A7%D9%84%D9%83%D9%84%D9%85%D8%A7%D8%AA%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%231a1a2e%22%2C%22theme_color%22%3A%22%231a1a2e%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fpng%3Bbase64%2CiVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII%3D%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fpng%22%7D%5D%7D">
-
-<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet"/>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
+<title>لعبة الكلمات العربية</title>
+<meta name="theme-color" content="#1a1a2e" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="لعبة الكلمات" />
+<link rel="manifest" href="./manifest.webmanifest" />
+<link rel="apple-touch-icon" href="./icons/icon-192.png" />
 <style>
-  /* إعدادات الطباعة وإلغاء الهوامش كما طلبت سابقاً */
-  @page { size: A4; margin: 0; }
-  html, body { margin: 0; padding: 0; }
-  
-  :root {
-    --fel-color: #FF6B6B;
-    --ism-color: #4ECDC4;
-    --harf-color: #FFE66D;
-    --bg: #1a1a2e;
-    --panel: #16213e;
-    --accent: #e94560;
-    --text: #eaeaea;
-    --correct: #06d6a0;
-    --wrong: #ef476f;
-    --gold: #FFD700;
-  }
-  
-  body {
-    font-family: 'Tajawal', sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    direction: rtl;
-    overflow: hidden;
-    height: 100vh;
-    width: 100vw;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    touch-action: none; /* لمنع التمرير على الجوال */
-  }
-
-  /* ===== TOP BAR ===== */
-  #topbar {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 8px 16px;
-    background: var(--panel);
-    border-bottom: 3px solid var(--accent);
-    z-index: 10;
-    flex-shrink: 0;
-  }
-  #topbar h1 { font-size: 1.4rem; font-weight: 900; color: var(--accent); letter-spacing: 1px; }
-  #score-box {
-    display: flex; align-items: center; gap: 8px;
-    background: #0f3460; border-radius: 10px; padding: 4px 14px;
-    font-size: 1.1rem; font-weight: 700;
-  }
-  #score-box span { color: #FFE66D; }
-  #status-bar {
-    font-size: 0.78rem; color: #aaa; text-align: center;
-    display: flex; flex-direction: column; align-items: center; gap: 2px;
-  }
-  #cam-status { font-size: 0.75rem; }
-  #hand-status { font-size: 0.75rem; }
-
-  /* ===== MAIN AREA ===== */
-  #main {
-    flex: 1;
-    width: 100%;
-    display: flex;
-    position: relative;
-    overflow: hidden;
-  }
-
-  /* ===== VIDEO (mirrored) ===== */
-  #video {
-    position: absolute;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    object-fit: cover;
-    transform: scaleX(-1);
-    opacity: 0.18;
-    z-index: 0;
-  }
-
-  /* ===== GAME CANVAS ===== */
-  #gameCanvas {
-    position: absolute;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    z-index: 2;
-  }
-
-  /* ===== OVERLAY SCREENS ===== */
-  .overlay {
-    position: absolute;
-    inset: 0;
-    z-index: 20;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    background: rgba(26,26,46,0.92);
-    backdrop-filter: blur(4px);
-    text-align: center;
-  }
-  .overlay h2 { font-size: 2.2rem; font-weight: 900; color: var(--accent); margin-bottom: 12px; }
-  .overlay p { font-size: 1.05rem; color: #ccc; max-width: 520px; text-align: center; line-height: 1.8; margin-bottom: 8px; }
-  .overlay .instructions {
-    background: var(--panel);
-    border-radius: 14px;
-    padding: 16px 24px;
-    margin: 12px 0;
-    max-width: 540px;
-    width: 90%;
-    font-size: 0.95rem;
-    line-height: 2;
-  }
-  
-  .golden-tip {
-    color: var(--gold);
-    font-weight: bold;
-    font-size: 1rem;
-    margin-top: 10px;
-  }
-
-  .zone-info { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin: 10px 0; }
-  .zone-badge {
-    border-radius: 10px; padding: 8px 20px; font-size: 1.1rem; font-weight: 900;
-    color: #111; min-width: 90px; text-align: center;
-  }
-  .zone-badge.fel  { background: var(--fel-color); }
-  .zone-badge.ism  { background: var(--ism-color); }
-  .zone-badge.harf { background: var(--harf-color); }
-
-  /* ===== BUTTONS ===== */
-  .btn {
-    font-family: 'Tajawal', sans-serif;
-    font-size: 1.2rem; font-weight: 900;
-    border: none; cursor: pointer;
-    border-radius: 14px; padding: 14px 40px;
-    margin: 8px;
-    transition: transform 0.1s, box-shadow 0.2s;
-    box-shadow: 0 4px 14px rgba(0,0,0,0.4);
-  }
-  .btn:active { transform: scale(0.95); }
-  .btn-start { background: var(--correct); color: #111; }
-  .btn-calib { background: #1e90ff; color: #fff; }
-  .btn-restart { background: var(--accent); color: #fff; }
-
-  /* ===== FEEDBACK TOAST ===== */
-  #feedback-toast {
-    position: absolute;
-    top: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 30;
-    font-size: 1.6rem;
-    font-weight: 900;
-    padding: 10px 30px;
-    border-radius: 16px;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.3s;
-    white-space: nowrap;
-    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
-  }
-  #feedback-toast.show { opacity: 1; }
-  #feedback-toast.correct { background: var(--correct); color: #111; }
-  #feedback-toast.wrong   { background: var(--wrong);   color: #fff; }
-  #feedback-toast.golden  { background: var(--gold);    color: #111; border: 2px solid #fff; }
-
-  /* ===== SCREENS ===== */
-  #game-over-screen, #pause-screen, #calib-screen { display: none; }
-  
-  #pause-screen { background: rgba(0,0,0,0.85); z-index: 50; }
-  #pause-screen h2 { color: #FFE66D; font-size: 3rem; }
-
-  #final-score { font-size: 2.5rem; font-weight: 900; color: var(--harf-color); margin: 5px 0; }
-  #achievement-title {
-    font-size: 2rem;
-    font-weight: 900;
-    color: var(--gold);
-    margin-bottom: 15px;
-    text-shadow: 0 2px 8px rgba(0,0,0,0.5);
-  }
-
-  /* ===== HIDDEN ===== */
-  .hidden { display: none !important; }
-
-  /* ===== CONFIDENCE BAR ===== */
-  #conf-bar-wrap { width: 80px; height: 5px; background: #333; border-radius: 3px; overflow: hidden; margin-top: 2px; }
-  #conf-bar { height: 100%; width: 0%; background: var(--correct); border-radius: 3px; transition: width .15s; }
-
-  /* ===== STATS GRID ===== */
-  #stats-grid { display: flex; gap: 12px; margin: 10px 0; }
-  .stat-cell {
-    background: var(--panel); border-radius: 12px;
-    border: 2px solid; padding: 10px 18px;
-    text-align: center; font-size: 1.2rem; font-weight: 900;
-    min-width: 80px;
-  }
-  .stat-cell span { font-size: 2rem; color: #fff; }
-
-  #review-list { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; max-height: 50vh; overflow-y: auto; padding: 8px; max-width: 560px; }
-  .review-card { background: var(--panel); border-radius: 12px; padding: 10px 18px; text-align: center; min-width: 110px; border: 2px solid var(--wrong); }
-  .review-card .rword { font-size: 1.4rem; font-weight: 900; }
-  .review-card .rtype { font-size: 0.85rem; color: var(--correct); margin-top: 4px; }
-  .review-card .rwrong { font-size: 0.75rem; color: var(--wrong); }
-  
-  /* شريط التقدم للمعايرة */
-  #calib-progress-wrap { width: 80%; height: 20px; background: #333; border-radius: 10px; margin-top: 20px; overflow: hidden; }
-  #calib-progress { height: 100%; width: 0%; background: #1e90ff; transition: width 0.1s; }
+:root{
+  --fel:#ff6b6b; --ism:#4ecdc4; --harf:#ffe66d;
+  --bg:#171b34; --panel:#1f2750; --panel2:#11182f; --accent:#e94560;
+  --text:#f2f5ff; --muted:#bfc7e6; --ok:#06d6a0; --bad:#ef476f; --gold:#ffd166;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;height:100%;background:var(--bg);color:var(--text);font-family:Tahoma,"Segoe UI","Noto Sans Arabic",Arial,sans-serif}
+body{overflow:hidden;touch-action:none}
+button,select,input{font:inherit}
+.hidden{display:none !important}
+.app{height:100%;display:flex;flex-direction:column}
+.topbar{
+  display:grid;grid-template-columns:1fr auto auto;gap:12px;align-items:center;
+  padding:10px 14px;background:var(--panel);border-bottom:3px solid var(--accent)
+}
+.title{font-size:1.25rem;font-weight:900;color:#fff}
+.status{display:flex;flex-direction:column;gap:3px;font-size:.83rem;color:var(--muted)}
+.scorepill,.combopill{
+  background:#0f3460;padding:8px 12px;border-radius:14px;font-weight:800;min-width:100px;text-align:center
+}
+.combopill{background:#4b3f15;color:#ffe8a3}
+.main{position:relative;flex:1;overflow:hidden}
+video,#gameCanvas{position:absolute;inset:0;width:100%;height:100%}
+video{object-fit:cover;transform:scaleX(-1);opacity:.18;background:#0d1224}
+#gameCanvas{z-index:2}
+.toolbar{
+  position:absolute;z-index:12;inset-inline:10px;top:10px;
+  display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-start
+}
+.toolbtn,.btn{
+  border:none;border-radius:14px;padding:10px 16px;cursor:pointer;
+  background:var(--panel);color:#fff;font-weight:800;box-shadow:0 8px 24px rgba(0,0,0,.25)
+}
+.toolbtn.secondary{background:#0f3460}
+.toolbtn.success,.btn.success{background:var(--ok);color:#111}
+.toolbtn.warn{background:#c88700;color:#111}
+.toolbtn.danger,.btn.danger{background:var(--accent)}
+.toolbtn.ghost{background:rgba(17,24,47,.75);backdrop-filter:blur(6px)}
+.overlay{
+  position:absolute;inset:0;z-index:20;background:rgba(11,16,32,.92);
+  display:flex;align-items:center;justify-content:center;padding:18px
+}
+.card{
+  width:min(960px,96vw);max-height:92vh;overflow:auto;
+  background:linear-gradient(180deg,var(--panel),var(--panel2));
+  border:1px solid rgba(255,255,255,.08);border-radius:24px;padding:22px;box-shadow:0 24px 60px rgba(0,0,0,.35)
+}
+.card h1,.card h2,.card h3{margin:0 0 12px}
+.card p{margin:6px 0;color:var(--muted);line-height:1.8}
+.grid2{display:grid;grid-template-columns:1.1fr .9fr;gap:18px}
+.badges{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
+.badge{
+  padding:10px 18px;border-radius:14px;font-weight:900;color:#111
+}
+.badge.fel{background:var(--fel)} .badge.ism{background:var(--ism)} .badge.harf{background:var(--harf)}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.panel{
+  background:rgba(255,255,255,.04);border-radius:18px;padding:14px
+}
+.simple-list{margin:0;padding:0 18px;line-height:2}
+.teacher-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.field{display:flex;flex-direction:column;gap:6px}
+label{font-weight:800}
+select,input[type="checkbox"]{accent-color:var(--accent)}
+select{
+  background:#0f1530;color:#fff;border:1px solid rgba(255,255,255,.15);
+  border-radius:12px;padding:10px 12px
+}
+.checkbox{display:flex;gap:8px;align-items:center}
+.note{font-size:.9rem;color:#c9d1ff}
+.feedback{
+  position:absolute;z-index:30;top:74px;left:50%;transform:translateX(-50%);
+  padding:12px 20px;border-radius:18px;font-weight:900;font-size:1.2rem;opacity:0;transition:.25s;
+  pointer-events:none;white-space:nowrap
+}
+.feedback.show{opacity:1}
+.feedback.ok{background:var(--ok);color:#111}
+.feedback.bad{background:var(--bad);color:#fff}
+.feedback.gold{background:var(--gold);color:#111}
+.bottomhud{
+  position:absolute;z-index:10;bottom:8px;left:10px;right:10px;
+  display:flex;justify-content:space-between;align-items:end;gap:12px;pointer-events:none
+}
+.hudbox{
+  background:rgba(15,21,48,.76);backdrop-filter:blur(6px);
+  border-radius:16px;padding:10px 14px;font-weight:800;min-width:110px
+}
+.statsgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:10px}
+.stat{background:rgba(255,255,255,.05);border-radius:16px;padding:12px;text-align:center}
+.stat .n{font-size:1.8rem;font-weight:900}
+.review-list{display:flex;flex-wrap:wrap;gap:10px}
+.review-card{background:rgba(255,255,255,.05);padding:10px 12px;border-radius:14px;border:1px solid rgba(255,255,255,.09);min-width:110px}
+.installhint{margin-top:10px;padding:10px 12px;border-radius:12px;background:#15314a;color:#d8ecff;font-size:.92rem}
+.board-mode .toolbar{top:auto;bottom:10px}
+.board-mode .topbar{padding:8px 14px}
+.board-mode .title{font-size:1.45rem}
+.board-mode .toolbtn,.board-mode .btn{font-size:1.05rem;padding:12px 16px}
+.board-mode .feedback{font-size:1.5rem}
+@media (max-width:820px){
+  .topbar{grid-template-columns:1fr auto;grid-template-areas:"title score" "status combo"}
+  .title{grid-area:title}.scorepill{grid-area:score}.status{grid-area:status}.combopill{grid-area:combo}
+  .grid2,.teacher-grid,.statsgrid{grid-template-columns:1fr}
+  .feedback{top:120px;max-width:92vw;white-space:normal;text-align:center}
+}
 </style>
 </head>
 <body>
-
-<div id="topbar">
-  <h1>🎯 لعبة الكلمات</h1>
-  <div id="status-bar">
-    <div id="cam-status">📷 جارٍ تشغيل الكاميرا...</div>
-    <div id="hand-status">🖐 لا توجد يد مكتشفة</div>
-    <div id="conf-bar-wrap" title="دقة التتبع"><div id="conf-bar"></div></div>
+<div class="app" id="appRoot">
+  <div class="topbar">
+    <div class="title">🎯 لعبة الكلمات العربية</div>
+    <div class="status">
+      <div id="camStatus">📷 الكاميرا: جارٍ التهيئة...</div>
+      <div id="handStatus">🖐 التتبع: لم يبدأ بعد</div>
+      <div id="controlStatus">🎮 التحكم: كاميرا</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <div class="combopill">كومبو: <span id="comboDisplay">0</span></div>
+      <div class="scorepill">النقاط: <span id="scoreDisplay">0</span></div>
+    </div>
   </div>
-  <div style="display:flex;align-items:center;gap:8px;">
-    <div id="score-box">النقاط: <span id="score-display">0</span></div>
+
+  <div class="main">
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="gameCanvas"></canvas>
+
+    <div class="toolbar">
+      <button class="toolbtn ghost" id="toggleCameraBtn">إخفاء الكاميرا</button>
+      <button class="toolbtn ghost" id="toggleTeacherBtn">وضع المعلم</button>
+      <button class="toolbtn ghost" id="toggleBoardBtn">وضع السبورة</button>
+      <button class="toolbtn success hidden" id="installBtn">تثبيت التطبيق</button>
+    </div>
+
+    <div class="feedback" id="feedback"></div>
+
+    <div class="bottomhud">
+      <div class="hudbox" id="livesBox">❤️ 5</div>
+      <div class="hudbox" id="modeBox">النمط: تدريب</div>
+      <div class="hudbox" id="levelBox">المستوى: سهل</div>
+    </div>
+
+    <div class="overlay" id="startOverlay">
+      <div class="card">
+        <div class="grid2">
+          <div>
+            <h1>🌟 لعبة تصنيف الكلمات</h1>
+            <p>المتعلم يلتقط الكلمة بإصبعه ويضعها في الصندوق الصحيح: <strong>فعل</strong> أو <strong>اسم</strong> أو <strong>حرف</strong>.</p>
+            <div class="badges">
+              <div class="badge fel">فعل</div>
+              <div class="badge ism">اسم</div>
+              <div class="badge harf">حرف</div>
+            </div>
+            <div class="panel" style="margin-top:14px">
+              <h3>طريقة اللعب</h3>
+              <ol class="simple-list">
+                <li>اضغط <strong>معايرة اليد</strong> مرة واحدة قبل البدء.</li>
+                <li>حرّك السبابة داخل مجال مريح أمام الكاميرا.</li>
+                <li>المس الكلمة لتلتصق بالمؤشر ثم وجّهها إلى الصندوق الصحيح.</li>
+                <li>إذا لم تعمل الكاميرا يمكنك اللعب باللمس أو الفأرة.</li>
+              </ol>
+            </div>
+            <div class="actions">
+              <button class="btn" id="calibrateBtn">📐 معايرة اليد</button>
+              <button class="btn success" id="startBtn">▶ ابدأ اللعبة</button>
+            </div>
+            <div class="installhint" id="installHint">
+              للتثبيت على الهاتف أو الحاسوب يجب تشغيل اللعبة من رابط HTTPS مثل GitHub Pages، وليس من فتح الملف مباشرة.
+            </div>
+          </div>
+
+          <div class="panel">
+            <h3>إعدادات سريعة</h3>
+            <div class="teacher-grid">
+              <div class="field">
+                <label for="modeSelect">النمط</label>
+                <select id="modeSelect">
+                  <option value="training">تدريب</option>
+                  <option value="challenge">تحدي</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="levelSelect">المستوى</label>
+                <select id="levelSelect">
+                  <option value="easy">سهل</option>
+                  <option value="medium">متوسط</option>
+                  <option value="hard">صعب</option>
+                </select>
+              </div>
+              <label class="checkbox"><input type="checkbox" id="useCameraCheck" checked> استخدام الكاميرا</label>
+              <label class="checkbox"><input type="checkbox" id="soundCheck" checked> تشغيل الصوت</label>
+              <label class="checkbox"><input type="checkbox" id="cameraVisibleCheck" checked> إظهار الكاميرا</label>
+              <label class="checkbox"><input type="checkbox" id="boardModeCheck"> وضع السبورة</label>
+            </div>
+            <p class="note">تُحفَظ هذه الإعدادات محلياً تلقائياً على الجهاز.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay hidden" id="calibOverlay">
+      <div class="card" style="max-width:700px;text-align:center">
+        <h2>📐 معايرة مجال الحركة</h2>
+        <p>حرّك السبابة نحو اليمين واليسار والأعلى والأسفل حتى يمتلئ الشريط.</p>
+        <div style="height:22px;background:#2a3158;border-radius:999px;overflow:hidden;margin-top:16px">
+          <div id="calibBar" style="height:100%;width:0%;background:#1e90ff"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay hidden" id="pauseOverlay">
+      <div class="card" style="max-width:640px;text-align:center">
+        <h2>⏸ توقف مؤقت</h2>
+        <p>فُقد تتبع اليد. أظهر يدك أمام الكاميرا أو استعمل اللمس/الفأرة.</p>
+        <div class="actions" style="justify-content:center">
+          <button class="btn success" id="resumeBtn">استئناف</button>
+          <button class="btn" id="switchToPointerBtn">التحكم باللمس/الفأرة</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay hidden" id="teacherOverlay">
+      <div class="card">
+        <h2>🧑‍🏫 وضع المعلم</h2>
+        <div class="teacher-grid">
+          <div class="field">
+            <label for="teacherMode">النمط</label>
+            <select id="teacherMode">
+              <option value="training">تدريب</option>
+              <option value="challenge">تحدي</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="teacherLevel">المستوى</label>
+            <select id="teacherLevel">
+              <option value="easy">سهل</option>
+              <option value="medium">متوسط</option>
+              <option value="hard">صعب</option>
+            </select>
+          </div>
+          <label class="checkbox"><input type="checkbox" id="teacherUseCamera"> استخدام الكاميرا</label>
+          <label class="checkbox"><input type="checkbox" id="teacherCameraVisible"> إظهار الكاميرا</label>
+          <label class="checkbox"><input type="checkbox" id="teacherBoardMode"> وضع السبورة</label>
+          <label class="checkbox"><input type="checkbox" id="teacherSound"> تشغيل الصوت</label>
+        </div>
+        <div class="actions">
+          <button class="btn success" id="teacherSaveBtn">حفظ الإعدادات</button>
+          <button class="btn danger" id="teacherResetStatsBtn">تصفير النتائج المحفوظة</button>
+          <button class="btn" id="teacherCloseBtn">إغلاق</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay hidden" id="gameOverOverlay">
+      <div class="card">
+        <h2>🎉 نهاية الجولة</h2>
+        <h3 id="summaryTitle">أحسنت</h3>
+        <div class="statsgrid">
+          <div class="stat"><div class="n" id="sumScore">0</div><div>النقاط</div></div>
+          <div class="stat"><div class="n" id="sumCorrect">0</div><div>صحيح</div></div>
+          <div class="stat"><div class="n" id="sumWrong">0</div><div>خطأ</div></div>
+          <div class="stat"><div class="n" id="sumBestCombo">0</div><div>أفضل كومبو</div></div>
+        </div>
+        <div class="panel" style="margin-top:12px">
+          <h3>تحليل سريع</h3>
+          <p id="analysisText">-</p>
+        </div>
+        <div class="panel" style="margin-top:12px">
+          <h3>مراجعة الأخطاء</h3>
+          <div class="review-list" id="reviewList"></div>
+        </div>
+        <div class="actions">
+          <button class="btn success" id="restartBtn">🔄 جولة جديدة</button>
+          <button class="btn" id="closeSummaryBtn">إغلاق</button>
+        </div>
+      </div>
+    </div>
+
   </div>
 </div>
 
-<div id="main">
-  <video id="video" autoplay playsinline muted></video>
-  <canvas id="gameCanvas"></canvas>
-
-  <!-- START SCREEN -->
-  <div class="overlay" id="start-screen">
-    <h2>🌟 لعبة تصنيف الكلمات</h2>
-    <div class="instructions">
-      <p><strong>كيف تلعب؟</strong></p>
-      <p>📌 المس الكلمة بإصبعك السبابة واسحبها للصندوق الصحيح.</p>
-      <p>💡 <em>نصيحة:</em> لضمان أفضل تحكم، قم بمعايرة الكاميرا أولاً.</p>
-    </div>
-    <div class="zone-info">
-      <div class="zone-badge fel">فعل</div>
-      <div class="zone-badge ism">اسم</div>
-      <div class="zone-badge harf">حرف</div>
-    </div>
-    <div style="display: flex; gap: 10px; margin-top: 15px;">
-        <button class="btn btn-calib" id="btn-calibrate">📐 معايرة اليد</button>
-        <button class="btn btn-start" id="btn-start">▶ ابدأ اللعب</button>
-    </div>
-  </div>
-
-  <!-- CALIBRATION SCREEN -->
-  <div class="overlay hidden" id="calib-screen">
-    <h2>📐 معايرة مجال الحركة</h2>
-    <p>أثناء امتلاء الشريط، حرك إصبعك بحرية لأقصى اليمين، اليسار، الأعلى، والأسفل لرسم إطار وهمي لحركتك.</p>
-    <div id="calib-progress-wrap"><div id="calib-progress"></div></div>
-  </div>
-
-  <!-- PAUSE SCREEN (فقدان التتبع) -->
-  <div class="overlay hidden" id="pause-screen">
-    <h2>⏸️ توقف مؤقت</h2>
-    <p>يبدو أن الكاميرا فقدت تتبع يدك!</p>
-    <p style="color: var(--gold); font-weight: bold;">أظهر يدك أمام الكاميرا بوضوح لاستئناف اللعب تلقائياً...</p>
-  </div>
-
-  <!-- GAME OVER SCREEN -->
-  <div class="overlay hidden" id="game-over-screen">
-    <h2>🎉 انتهت اللعبة!</h2>
-    <div id="achievement-title">نَحْوِيٌّ مُبْتَدِئٌ 🌱</div>
-    <div id="final-score">0 نقطة</div>
-    <div id="stats-grid">
-      <div class="stat-cell" style="border-color:var(--correct)">
-        <span id="stat-correct">0</span><br>✅ صحيح
-      </div>
-      <div class="stat-cell" style="border-color:var(--wrong)">
-        <span id="stat-wrong">0</span><br>❌ خطأ
-      </div>
-    </div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center; margin-top:10px;">
-      <button class="btn btn-restart" id="btn-restart">🔄 العب مرة أخرى</button>
-      <button class="btn" style="background:#0f3460;color:#fff;" id="btn-review">📖 مراجعة الأخطاء</button>
-    </div>
-  </div>
-
-  <!-- REVIEW SCREEN -->
-  <div class="overlay hidden" id="review-screen">
-    <h2>📖 مراجعة الأخطاء</h2>
-    <div id="review-list"></div>
-    <button class="btn btn-restart" id="btn-review-back">🔙 رجوع</button>
-  </div>
-
-  <div id="feedback-toast"></div>
-</div>
-
-<!-- MediaPipe via CDN -->
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
-
 <script>
-// ============================================================
-//  PWA Setup (تثبيت التطبيق)
-// ============================================================
-// تم إيقاف تسجيل Service Worker المؤقت لتجنب خطأ التوافقية (Blob URL) في بيئات العرض.
-// لتفعيل ميزة العمل بدون إنترنت كلياً لاحقاً، يجب إنشاء ملف sw.js مستقل عند رفع اللعبة للاستضافة.
-if ('serviceWorker' in navigator) {
-    console.log('ميزة التثبيت (Manifest) جاهزة.');
-}
+const VERSION = '1.0.0';
+const APP_KEY = 'arabicWordsGame.v1';
+const SETTINGS_KEY = APP_KEY + '.settings';
+const RESULTS_KEY = APP_KEY + '.results';
 
-// ============================================================
-//  WORD BANK 
-// ============================================================
-const WORD_BANK = [
-  { word: 'كَتَبَ',   type: 'فعل'  }, { word: 'قَرَأَ',   type: 'فعل'  }, { word: 'ذَهَبَ',   type: 'فعل'  },
-  { word: 'أَكَلَ',   type: 'فعل'  }, { word: 'شَرِبَ',   type: 'فعل'  }, { word: 'لَعِبَ',   type: 'فعل'  },
-  { word: 'كِتَابٌ',   type: 'اسم'  }, { word: 'مَدْرَسَةٌ', type: 'اسم'  }, { word: 'قَلَمٌ',    type: 'اسم'  },
-  { word: 'بَيْتٌ',    type: 'اسم'  }, { word: 'شَمْسٌ',    type: 'اسم'  }, { word: 'وَلَدٌ',    type: 'اسم'  },
-  { word: 'فِي',      type: 'حرف'  }, { word: 'عَلَى',    type: 'حرف'  }, { word: 'مِنْ',     type: 'حرف'  },
-  { word: 'إِلَى',    type: 'حرف'  }, { word: 'وَ',       type: 'حرف'  }, { word: 'ثُمَّ',    type: 'حرف'  }
-];
+const WORD_BANKS = {
+  easy: {
+    'فعل': ['كَتَبَ','قَرَأَ','أَكَلَ','لَعِبَ','جَلَسَ','نَامَ'],
+    'اسم': ['قَلَمٌ','كِتَابٌ','بَيْتٌ','شَمْسٌ','بِنْتٌ','وَلَدٌ'],
+    'حرف': ['فِي','مِنْ','إِلَى','عَلَى','وَ','بِ']
+  },
+  medium: {
+    'فعل': ['رَسَمَ','فَتَحَ','سَمِعَ','رَكَضَ','ذَهَبَ','شَرِبَ'],
+    'اسم': ['مَدْرَسَةٌ','مُعَلِّمٌ','سَيَّارَةٌ','طَائِرٌ','نَهَرٌ','تُفَّاحٌ'],
+    'حرف': ['عَنْ','هَلْ','لَا','ثُمَّ','لِ','فَ']
+  },
+  hard: {
+    'فعل': ['يَكْتُبُ','يَقْرَأُ','يَلْعَبُ','يَرْسُمُ','اِسْتَمَعَ','اِنْطَلَقَ'],
+    'اسم': ['مَكْتَبَةٌ','حَقِيبَةٌ','فَصْلٌ','مِفْتَاحٌ','مِسْطَرَةٌ','حَدِيقَةٌ'],
+    'حرف': ['لَكِنْ','أَوْ','بَلْ','مَعَ','تَحْتَ','فَوْقَ']
+  }
+};
 
 const ZONES = [
-  { label: 'فعل',  key: 'فعل',  color: '#FF6B6B', textColor: '#111' },
-  { label: 'اسم',  key: 'اسم',  color: '#4ECDC4', textColor: '#111' },
-  { label: 'حرف',  key: 'حرف',  color: '#FFE66D', textColor: '#111' },
+  { key:'فعل', label:'فعل', color:'#ff6b6b', text:'#111' },
+  { key:'اسم', label:'اسم', color:'#4ecdc4', text:'#111' },
+  { key:'حرف', label:'حرف', color:'#ffe66d', text:'#111' }
 ];
 
-// ============================================================
-//  STATE & DELTA TIME
-// ============================================================
-let score = 0;
-let lives = 5;
-let gameRunning = false;
-let gameOver = false;
-let isPaused = false;
+const defaults = {
+  mode:'training',
+  level:'easy',
+  useCamera:true,
+  showCamera:true,
+  boardMode:false,
+  sound:true
+};
 
-// إعدادات الـ Delta Time
-let lastTime = performance.now();
-const WORD_SPEED_BASE = 0.5;
-let spawnTimer = 0;
-let SPAWN_INTERVAL = 180; // (بحسب إطارات 60fps)
+let settings = loadJSON(SETTINGS_KEY, defaults);
+let persistedResults = loadJSON(RESULTS_KEY, { highScore:0, sessions:0, totals:{correct:0, wrong:0} });
 
-let statCorrect = 0, statWrong = 0;
-let missedWords = []; 
+let state = {
+  score:0, lives:5, combo:0, bestCombo:0,
+  running:false, paused:false, over:false,
+  correct:0, wrong:0,
+  missed:[],
+  lastSpawn:0,
+  pointerX:-999, pointerY:-999, inputMode:'camera',
+  hasTracking:false,
+  handLostMs:0,
+  calibrated:false,
+  calib:{minX:0.1,maxX:0.9,minY:0.1,maxY:0.9},
+  pool:[],
+  particles:[]
+};
 
-// ============================================================
-//  OBJECT POOLS (كلمات وجسيمات معادة الاستخدام)
-// ============================================================
-const MAX_WORDS = 15;
-const wordPool = [];
-for(let i=0; i<MAX_WORDS; i++) {
-    wordPool.push({
-        active: false, id: i, word: '', type: '', isGolden: false, 
-        x: 0, y: 0, vy: 0, w: 0, h: 0, dragging: false, opacity: 1, dying: false
-    });
+const MAX_WORDS = 12;
+const MAX_PARTICLES = 120;
+for(let i=0;i<MAX_WORDS;i++){
+  state.pool.push({active:false,id:i,word:'',type:'',x:0,y:0,w:0,h:0,vy:0,dragging:false,dying:false,opacity:1});
+}
+for(let i=0;i<MAX_PARTICLES;i++){
+  state.particles.push({active:false,x:0,y:0,vx:0,vy:0,life:0,maxLife:0,r:0,color:'#fff'});
 }
 
-const MAX_PARTICLES = 150;
-const particlePool = [];
-for(let i=0; i<MAX_PARTICLES; i++) {
-    particlePool.push({ active: false, x: 0, y: 0, vx: 0, vy: 0, life: 0, decay: 0, r: 0, color: '' });
-}
+const els = {};
+[
+ 'video','gameCanvas','scoreDisplay','comboDisplay','camStatus','handStatus','controlStatus','feedback',
+ 'startOverlay','calibOverlay','pauseOverlay','teacherOverlay','gameOverOverlay','reviewList',
+ 'modeBox','levelBox','livesBox','summaryTitle','sumScore','sumCorrect','sumWrong','sumBestCombo','analysisText',
+ 'calibBar','installBtn','installHint','toggleCameraBtn','toggleTeacherBtn','toggleBoardBtn',
+ 'calibrateBtn','startBtn','resumeBtn','switchToPointerBtn','restartBtn','closeSummaryBtn',
+ 'btnStart','modeSelect','levelSelect','useCameraCheck','soundCheck','cameraVisibleCheck','boardModeCheck',
+ 'teacherMode','teacherLevel','teacherUseCamera','teacherCameraVisible','teacherBoardMode','teacherSound',
+ 'teacherSaveBtn','teacherResetStatsBtn','teacherCloseBtn'
+].forEach(id => els[id] = document.getElementById(id));
 
-let activeDrag = null; // ID of the word currently attached to finger
-
+const ctx = els.gameCanvas.getContext('2d');
+let cw = 0, ch = 0;
+let mpHands = null, mpCamera = null;
+let deferredPrompt = null;
 let audioCtx = null;
-function getAudioCtx() {
-  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+let lastTs = performance.now();
+
+function loadJSON(key, fallback){
+  try { return Object.assign({}, fallback, JSON.parse(localStorage.getItem(key)||'{}')); }
+  catch { return structuredClone(fallback); }
+}
+function saveSettings(){ localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); }
+function saveResults(){ localStorage.setItem(RESULTS_KEY, JSON.stringify(persistedResults)); }
+
+function syncSettingsToUI(){
+  els.modeSelect.value = settings.mode;
+  els.levelSelect.value = settings.level;
+  els.useCameraCheck.checked = settings.useCamera;
+  els.soundCheck.checked = settings.sound;
+  els.cameraVisibleCheck.checked = settings.showCamera;
+  els.boardModeCheck.checked = settings.boardMode;
+
+  els.teacherMode.value = settings.mode;
+  els.teacherLevel.value = settings.level;
+  els.teacherUseCamera.checked = settings.useCamera;
+  els.teacherCameraVisible.checked = settings.showCamera;
+  els.teacherBoardMode.checked = settings.boardMode;
+  els.teacherSound.checked = settings.sound;
+
+  applyVisualSettings();
+}
+function applyVisualSettings(){
+  els.video.style.opacity = settings.showCamera ? '0.18' : '0';
+  document.body.classList.toggle('board-mode', settings.boardMode);
+  state.inputMode = settings.useCamera ? 'camera' : 'pointer';
+  els.controlStatus.textContent = settings.useCamera ? '🎮 التحكم: كاميرا' : '🎮 التحكم: لمس/فأرة';
+  els.modeBox.textContent = 'النمط: ' + (settings.mode === 'training' ? 'تدريب' : 'تحدي');
+  els.levelBox.textContent = 'المستوى: ' + ({easy:'سهل',medium:'متوسط',hard:'صعب'})[settings.level];
+  els.toggleCameraBtn.textContent = settings.showCamera ? 'إخفاء الكاميرا' : 'إظهار الكاميرا';
+}
+function resize(){
+  const rect = els.gameCanvas.getBoundingClientRect();
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  els.gameCanvas.width = Math.round(rect.width * dpr);
+  els.gameCanvas.height = Math.round(rect.height * dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  cw = rect.width; ch = rect.height;
+}
+window.addEventListener('resize', resize);
+
+function zoneRects(){
+  const h = settings.boardMode ? 130 : 108;
+  const w = cw / 3;
+  return ZONES.map((z, i) => ({...z, x:(2-i)*w, y:ch-h, w, h}));
+}
+
+function getAudio(){
+  if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   return audioCtx;
 }
-
-// ============================================================
-//  FINGER TRACKING & CALIBRATION
-// ============================================================
-let fingerX = -200, fingerY = -200;
-let smoothX  = -200, smoothY  = -200;
-
-// حدود المعايرة (القيم الافتراضية تغطي 80% من الكاميرا)
-let calibMinX = 0.1, calibMaxX = 0.9;
-let calibMinY = 0.1, calibMaxY = 0.9;
-let isCalibrating = false;
-
-class Kalman1D {
-  constructor(Q = 0.8, R = 12) { this.Q=Q; this.R=R; this.x=0; this.P=1; }
-  update(z) {
-    this.P += this.Q;
-    const K = this.P / (this.P + this.R);
-    this.x += K * (z - this.x);
-    this.P *= (1 - K);
-    return this.x;
+function beep(freq=600, dur=0.09, type='sine', vol=.03){
+  if(!settings.sound) return;
+  const ac = getAudio();
+  const osc = ac.createOscillator();
+  const gain = ac.createGain();
+  osc.type = type; osc.frequency.value = freq;
+  gain.gain.value = vol;
+  osc.connect(gain); gain.connect(ac.destination);
+  osc.start();
+  osc.stop(ac.currentTime + dur);
+}
+function showFeedback(msg, kind='ok'){
+  const el = els.feedback;
+  el.textContent = msg;
+  el.className = 'feedback show ' + kind;
+  clearTimeout(showFeedback.t);
+  showFeedback.t = setTimeout(()=> el.className = 'feedback', 1300);
+}
+function teacherExplanation(type){
+  if(type === 'اسم') return 'اسم لأنه يدل على إنسان أو شيء أو مكان.';
+  if(type === 'فعل') return 'فعل لأنه يدل على حدث أو عمل.';
+  return 'حرف لأنه لا يكتمل معناه وحده.';
+}
+function nextWordData(){
+  const bank = WORD_BANKS[settings.level];
+  const types = Object.keys(bank);
+  const type = types[Math.floor(Math.random()*types.length)];
+  const arr = bank[type];
+  return { type, word: arr[Math.floor(Math.random()*arr.length)] };
+}
+function getFreeWord(){
+  return state.pool.find(w => !w.active);
+}
+function spawnWord(){
+  const slot = getFreeWord();
+  if(!slot) return;
+  const data = nextWordData();
+  const margin = 90;
+  slot.active = true;
+  slot.word = data.word;
+  slot.type = data.type;
+  slot.x = margin + Math.random() * Math.max(100, cw - margin*2);
+  slot.y = -60;
+  slot.vy = settings.level === 'easy' ? 70 : settings.level === 'medium' ? 95 : 120;
+  slot.dragging = false;
+  slot.dying = false;
+  slot.opacity = 1;
+}
+function makeBurst(x,y,color,count=10){
+  let made = 0;
+  for(const p of state.particles){
+    if(p.active) continue;
+    p.active = true;
+    p.x = x; p.y = y;
+    const ang = Math.random()*Math.PI*2;
+    const sp = 60 + Math.random()*140;
+    p.vx = Math.cos(ang)*sp;
+    p.vy = Math.sin(ang)*sp - 30;
+    p.life = p.maxLife = .5 + Math.random()*.35;
+    p.r = 2 + Math.random()*5;
+    p.color = color;
+    if(++made >= count) break;
   }
-  reset(z) { this.x = z; this.P = 1; }
 }
-const kalX = new Kalman1D();
-const kalY = new Kalman1D();
-let handLostFrames = 0;
-
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-let feedbackTimer = 0;
-
-// ============================================================
-//  RESIZE
-// ============================================================
-function resizeCanvas() {
-  const main = document.getElementById('main');
-  const dpr = Math.min(window.devicePixelRatio || 1, 1);
-  canvas.width  = main.clientWidth  * dpr;
-  canvas.height = main.clientHeight * dpr;
-  canvas.style.width  = main.clientWidth  + 'px';
-  canvas.style.height = main.clientHeight + 'px';
-  ctx.scale(dpr, dpr);
-  layoutZones();
+function classify(word, zoneKey){
+  word.dying = true;
+  word.dragging = false;
+  if(word.type === zoneKey){
+    const comboBonus = state.combo >= 5 ? 10 : state.combo >= 3 ? 5 : 0;
+    state.combo += 1;
+    state.bestCombo = Math.max(state.bestCombo, state.combo);
+    state.score += 10 + comboBonus;
+    state.correct += 1;
+    showFeedback(comboBonus ? `✅ صحيح +${10+comboBonus}` : '✅ صحيح +10', 'ok');
+    beep(650 + Math.min(state.combo*20, 120));
+    makeBurst(word.x, word.y, '#06d6a0', 14);
+  }else{
+    state.combo = 0;
+    state.wrong += 1;
+    const explanation = teacherExplanation(word.type);
+    if(settings.mode === 'challenge'){
+      state.score = Math.max(0, state.score - 5);
+      state.lives -= 1;
+    }
+    state.missed.push({ word: word.word, correct: word.type, chosen: zoneKey, explanation });
+    showFeedback(`❌ "${word.word}" ${explanation}`, 'bad');
+    beep(220, 0.12, 'square', .035);
+    makeBurst(word.x, word.y, '#ef476f', 12);
+  }
+  updateHud();
+  if(settings.mode === 'challenge' && state.lives <= 0) finishGame();
 }
-window.addEventListener('resize', resizeCanvas);
+function finishGame(){
+  state.running = false;
+  state.over = true;
+  persistedResults.highScore = Math.max(persistedResults.highScore, state.score);
+  persistedResults.sessions += 1;
+  persistedResults.totals.correct += state.correct;
+  persistedResults.totals.wrong += state.wrong;
+  saveResults();
 
-const ZONE_HEIGHT = 100;
-function layoutZones() {
-  const main = document.getElementById('main');
-  const w = main.clientWidth;
-  const h = main.clientHeight;
-  const zw = w / 3;
-  ZONES.forEach((z, i) => {
-    z.x = (2 - i) * zw;
-    z.y = h - ZONE_HEIGHT;
-    z.w = zw;
-    z.h = ZONE_HEIGHT;
-  });
-  canvas._logicalW = w;
-  canvas._logicalH = h;
+  els.sumScore.textContent = state.score;
+  els.sumCorrect.textContent = state.correct;
+  els.sumWrong.textContent = state.wrong;
+  els.sumBestCombo.textContent = state.bestCombo;
+  els.summaryTitle.textContent =
+    state.score >= 120 ? 'ممتاز جداً' :
+    state.score >= 70 ? 'أحسنت' :
+    state.score >= 35 ? 'بداية جيدة' : 'استمر في التدريب';
+
+  const total = state.correct + state.wrong;
+  const acc = total ? Math.round((state.correct/total)*100) : 0;
+  els.analysisText.textContent =
+    `الدقة ${acc}%، أعلى نتيجة محفوظة ${persistedResults.highScore}، ` +
+    (state.missed.length ? `أكثر حاجة تحتاج مراجعة: ${state.missed.slice(-1)[0].correct}.` : 'لم تسجّل أخطاء في هذه الجولة.');
+
+  els.reviewList.innerHTML = state.missed.length
+    ? state.missed.slice(-8).map(m => `<div class="review-card"><div><strong>${m.word}</strong></div><div>الصحيح: ${m.correct}</div><div style="font-size:.85rem;color:#c9d1ff">${m.explanation}</div></div>`).join('')
+    : '<div class="review-card">لا توجد أخطاء في هذه الجولة.</div>';
+
+  els.gameOverOverlay.classList.remove('hidden');
 }
+function resetRound(){
+  state.score=0; state.lives=5; state.combo=0; state.bestCombo=0;
+  state.running=false; state.paused=false; state.over=false;
+  state.correct=0; state.wrong=0; state.missed=[]; state.lastSpawn=0; state.handLostMs=0;
+  for(const w of state.pool){ w.active=false; w.dragging=false; w.dying=false; w.opacity=1; }
+  for(const p of state.particles){ p.active=false; }
+  updateHud();
+}
+function startGame(){
+  resetRound();
+  state.running = true;
+  els.startOverlay.classList.add('hidden');
+  els.gameOverOverlay.classList.add('hidden');
+  showFeedback(settings.mode === 'training' ? 'ابدأ التدريب' : 'ابدأ التحدي', 'gold');
+}
+function updateHud(){
+  els.scoreDisplay.textContent = state.score;
+  els.comboDisplay.textContent = state.combo;
+  els.livesBox.textContent = settings.mode === 'challenge' ? `❤️ ${state.lives}` : '♾️ تدريب';
+}
+function clamp(n,min,max){ return Math.max(min, Math.min(max, n)); }
 
-// ============================================================
-//  WEBCAM + MEDIAPIPE
-// ============================================================
-const video = document.getElementById('video');
-let handsModel = null;
+class Kalman1D{
+  constructor(Q=.8,R=12){ this.Q=Q; this.R=R; this.x=0; this.P=1; this.ready=false; }
+  update(z){ if(!this.ready){ this.x=z; this.ready=true; return z; } this.P+=this.Q; const K=this.P/(this.P+this.R); this.x += K*(z-this.x); this.P *= (1-K); return this.x; }
+}
+const kalX = new Kalman1D(.5,10), kalY = new Kalman1D(.5,10);
 
-async function initCamera() {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode:'user' }, audio: false });
-    video.srcObject = stream;
-    document.getElementById('cam-status').textContent = '📷 الكاميرا تعمل ✅';
-  } catch(e) {
-    document.getElementById('cam-status').textContent = '📷 تعذر الوصول للكاميرا ❌';
+async function initCamera(){
+  if(!navigator.mediaDevices?.getUserMedia){
+    settings.useCamera = false; saveSettings(); applyVisualSettings();
+    els.camStatus.textContent = '📷 الكاميرا: غير مدعومة';
+    return;
+  }
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:'user', width:{ideal:640}, height:{ideal:480} }, audio:false });
+    els.video.srcObject = stream;
+    els.camStatus.textContent = '📷 الكاميرا: تعمل';
+  }catch(err){
+    settings.useCamera = false; saveSettings(); applyVisualSettings();
+    els.camStatus.textContent = '📷 الكاميرا: مرفوضة أو غير متاحة';
+    els.installHint.textContent = 'يمكنك اللعب باللمس أو الفأرة إذا لم تعمل الكاميرا.';
     return;
   }
 
-  handsModel = new Hands({
-    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+  mpHands = new Hands({ locateFile:file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
+  mpHands.setOptions({
+    maxNumHands:1,
+    modelComplexity:1,
+    minDetectionConfidence:0.75,
+    minTrackingConfidence:0.75,
+    selfieMode:true
   });
-  handsModel.setOptions({
-    maxNumHands: 1, modelComplexity: 0,
-    minDetectionConfidence: 0.6, minTrackingConfidence: 0.5,
-    selfieMode: true,
-  });
-  handsModel.onResults(onHandResults);
+  mpHands.onResults(onHandResults);
 
-  const camera = new Camera(video, {
-    onFrame: async () => { if (handsModel) await handsModel.send({ image: video }); },
-    width: 320, height: 240
+  mpCamera = new Camera(els.video, {
+    onFrame: async() => {
+      if(settings.useCamera && mpHands) await mpHands.send({ image: els.video });
+    },
+    width:640, height:480
   });
-  camera.start();
+  mpCamera.start();
 }
+function onHandResults(results){
+  if(!settings.useCamera) return;
+  const landmarks = results.multiHandLandmarks?.[0];
+  if(!landmarks){
+    state.hasTracking = false;
+    els.handStatus.textContent = '🖐 التتبع: لا توجد يد';
+    return;
+  }
+  const raw = landmarks[8];
+  let x = raw.x, y = raw.y;
+  if(state.calibrated){
+    x = (x - state.calib.minX) / Math.max(0.001, state.calib.maxX - state.calib.minX);
+    y = (y - state.calib.minY) / Math.max(0.001, state.calib.maxY - state.calib.minY);
+  }
+  x = clamp(x,0,1); y = clamp(y,0,1);
+  const px = x * cw;
+  const py = y * ch;
+  state.pointerX = kalX.update(px);
+  state.pointerY = kalY.update(py);
+  state.hasTracking = true;
+  state.lastHandSeen = performance.now();
+  els.handStatus.textContent = '🖐 التتبع: يد مكتشفة';
+  if(state.paused){
+    state.paused = false;
+    els.pauseOverlay.classList.add('hidden');
+  }
+}
+function startCalibration(){
+  if(!settings.useCamera){
+    showFeedback('المعايرة تعمل فقط عند تفعيل الكاميرا', 'bad');
+    return;
+  }
+  els.calibOverlay.classList.remove('hidden');
+  state.calib = { minX:1, maxX:0, minY:1, maxY:0 };
+  let progress = 0;
+  const start = performance.now();
 
-function onHandResults(results) {
-  if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-    handLostFrames = 0;
-    
-    // استئناف اللعب إذا كان متوقفاً بسبب غياب اليد
-    if (isPaused && gameRunning && !gameOver) {
-        isPaused = false;
-        document.getElementById('pause-screen').classList.add('hidden');
+  const tick = setInterval(() => {
+    progress = Math.min(100, Math.round((performance.now() - start) / 50));
+    els.calibBar.style.width = progress + '%';
+
+    if(state.hasTracking && mpHands){
+      // قيم آخر pointer ليست normalized؛ نستخدم raw from landmarks غير متاحة هنا
+      // لذلك نأخذ من latestCameraNormalized التي نحدّثها مع pointer.
     }
-
-    const lm = results.multiHandLandmarks[0];
-    const raw = lm[8]; // Index finger tip
-    const W = canvas._logicalW || canvas.width;
-    const H = canvas._logicalH || canvas.height;
-
-    const conf = (raw.visibility != null) ? raw.visibility : 1;
-    document.getElementById('conf-bar').style.width = Math.round(conf * 100) + '%';
-
-    // أثناء فترة المعايرة، نسجل أقصى حركات التلميذ
-    if (isCalibrating) {
-        calibMinX = Math.min(calibMinX, raw.x); calibMaxX = Math.max(calibMaxX, raw.x);
-        calibMinY = Math.min(calibMinY, raw.y); calibMaxY = Math.max(calibMaxY, raw.y);
+    if(progress >= 100){
+      clearInterval(tick);
+      // اعتماد مجال آمن إذا لم يتحرك المستخدم كفاية
+      if(window.latestNorm){
+        if(state.calib.maxX - state.calib.minX < .2){ state.calib.minX = .1; state.calib.maxX = .9; }
+        if(state.calib.maxY - state.calib.minY < .2){ state.calib.minY = .1; state.calib.maxY = .9; }
+      }else{
+        state.calib = { minX:.1,maxX:.9,minY:.1,maxY:.9 };
+      }
+      state.calibrated = true;
+      localStorage.setItem(APP_KEY + '.calib', JSON.stringify(state.calib));
+      els.calibOverlay.classList.add('hidden');
+      showFeedback('✅ تمت المعايرة', 'gold');
     }
-
-    // تطبيق المعايرة على الإحداثيات (Mapping)
-    let mappedX = (raw.x - calibMinX) / (calibMaxX - calibMinX || 1);
-    let mappedY = (raw.y - calibMinY) / (calibMaxY - calibMinY || 1);
-    mappedX = Math.max(0, Math.min(1, mappedX));
-    mappedY = Math.max(0, Math.min(1, mappedY));
-
-    const rx = mappedX * W;
-    const ry = mappedY * H;
-
-    fingerX = kalX.update(rx);
-    fingerY = kalY.update(ry);
-    document.getElementById('hand-status').textContent = '🖐 يد مكتشفة ✅';
-  } else {
-    handLostFrames++;
-    
-    // إيقاف اللعب مؤقتاً إذا اختفت اليد (30 إطار = حوالي نصف ثانية)
-    if (handLostFrames > 30 && gameRunning && !gameOver && !isPaused) {
-        isPaused = true;
-        document.getElementById('pause-screen').classList.remove('hidden');
+  }, 60);
+}
+window.latestNorm = null;
+function patchHandResultsForCalibration(){
+  const original = onHandResults;
+  onHandResults = function(results){
+    const landmarks = results.multiHandLandmarks?.[0];
+    if(landmarks){
+      const raw = landmarks[8];
+      window.latestNorm = { x: raw.x, y: raw.y };
+      if(!els.calibOverlay.classList.contains('hidden')){
+        state.calib.minX = Math.min(state.calib.minX, raw.x);
+        state.calib.maxX = Math.max(state.calib.maxX, raw.x);
+        state.calib.minY = Math.min(state.calib.minY, raw.y);
+        state.calib.maxY = Math.max(state.calib.maxY, raw.y);
+      }
     }
+    return original(results);
+  }
+}
+patchHandResultsForCalibration();
 
-    if (handLostFrames > 6) {
-      fingerX = -200; fingerY = -200;
-      document.getElementById('hand-status').textContent = '🖐 لا توجد يد مكتشفة';
-      document.getElementById('conf-bar').style.width = '0%';
-    }
+function registerPWA(){
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('./sw.js').catch(err => console.warn('SW register failed', err));
+  }
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    els.installBtn.classList.remove('hidden');
+    els.installHint.textContent = 'التطبيق جاهز للتثبيت من هذا الزر أو من زر المتصفح.';
+  });
+  window.addEventListener('appinstalled', () => {
+    deferredPrompt = null;
+    els.installBtn.classList.add('hidden');
+    els.installHint.textContent = 'تم تثبيت التطبيق بنجاح.';
+  });
+}
+async function triggerInstall(){
+  if(!deferredPrompt) return;
+  const result = await deferredPrompt.prompt();
+  deferredPrompt = null;
+  if(result?.outcome === 'accepted'){
+    els.installBtn.classList.add('hidden');
   }
 }
 
-// ============================================================
-//  CALIBRATION LOGIC
-// ============================================================
-document.getElementById('btn-calibrate').addEventListener('click', () => {
-    document.getElementById('start-screen').classList.add('hidden');
-    document.getElementById('calib-screen').classList.remove('hidden');
-    
-    // إعادة تعيين حدود المعايرة
-    calibMinX = 1; calibMaxX = 0; calibMinY = 1; calibMaxY = 0;
-    isCalibrating = true;
-    
-    let progress = 0;
-    const bar = document.getElementById('calib-progress');
-    const interval = setInterval(() => {
-        progress += 2; // 2% every 100ms = 5 seconds total
-        bar.style.width = progress + '%';
-        if (progress >= 100) {
-            clearInterval(interval);
-            isCalibrating = false;
-            
-            // حماية في حال لم يحرك يده لتجنب حساسية مفرطة
-            if (calibMaxX - calibMinX < 0.2) { calibMinX = 0.1; calibMaxX = 0.9; }
-            if (calibMaxY - calibMinY < 0.2) { calibMinY = 0.1; calibMaxY = 0.9; }
+function gameStep(ts){
+  const dt = Math.min(40, ts - lastTs) / 1000;
+  lastTs = ts;
 
-            document.getElementById('calib-screen').classList.add('hidden');
-            document.getElementById('start-screen').classList.remove('hidden');
-            document.getElementById('btn-calibrate').textContent = '✅ تمت المعايرة بنجاح';
-            document.getElementById('btn-calibrate').style.background = 'var(--correct)';
-            document.getElementById('btn-calibrate').style.color = '#111';
+  if(settings.useCamera){
+    const sinceSeen = performance.now() - (state.lastHandSeen || 0);
+    if(sinceSeen > 120){
+      state.hasTracking = false;
+      els.handStatus.textContent = '🖐 التتبع: لا توجد يد';
+    }
+    if(!state.hasTracking){
+      state.handLostMs += dt * 1000;
+      if(state.running && state.handLostMs > 1200 && !state.paused){
+        state.paused = true;
+        els.pauseOverlay.classList.remove('hidden');
+      }
+    }else{
+      state.handLostMs = 0;
+    }
+  }
+
+  if(state.running && !state.paused){
+    state.lastSpawn += dt;
+    const activeCount = state.pool.filter(w => w.active && !w.dying).length;
+    const spawnEvery = settings.mode === 'challenge' ? (settings.level === 'easy' ? 1.8 : settings.level === 'medium' ? 1.4 : 1.1) : (settings.level === 'easy' ? 2.1 : settings.level === 'medium' ? 1.7 : 1.4);
+    if(state.lastSpawn >= spawnEvery && activeCount < 3){
+      spawnWord();
+      state.lastSpawn = 0;
+    }
+
+    const zones = zoneRects();
+    for(const w of state.pool){
+      if(!w.active) continue;
+
+      if(w.dying){
+        w.opacity -= dt * 3.2;
+        if(w.opacity <= 0){ w.active = false; }
+        continue;
+      }
+
+      const dx = state.pointerX - w.x;
+      const dy = state.pointerY - w.y;
+      const dist = Math.hypot(dx, dy);
+
+      if(settings.useCamera || state.inputMode === 'pointer'){
+        if(!state.pool.some(x => x.dragging) && state.pointerX > -100 && dist < Math.max(55, (w.w||90)*0.5 + 15)){
+          w.dragging = true;
         }
-    }, 100);
-});
+      }
 
-// ============================================================
-//  WORD LOGIC (Object Pool)
-// ============================================================
-function spawnWord() {
-  const w = wordPool.find(p => !p.active);
-  if (!w) return; // Pool full
+      if(w.dragging){
+        w.x = state.pointerX;
+        w.y = state.pointerY;
+        const targetZone = zones.find(z => w.x >= z.x && w.x <= z.x+z.w && w.y >= z.y);
+        if(targetZone){
+          classify(w, targetZone.key);
+        }
+      }else{
+        w.y += w.vy * dt;
+      }
 
-  const data = WORD_BANK[Math.floor(Math.random() * WORD_BANK.length)];
-  const W = canvas._logicalW || canvas.width;
-  
-  w.word = data.word;
-  w.type = data.type;
-  w.isGolden = Math.random() < 0.10; // الكلمة الذهبية 10%
-  w.x = 60 + Math.random() * (W - 120);
-  w.y = -60;
-  w.vy = WORD_SPEED_BASE + (score * 0.005);
-  w.dragging = false;
-  w.opacity = 1;
-  w.dying = false;
-  w.active = true;
-}
-
-function drawZones() {
-  const H = canvas._logicalH || canvas.height;
-  let hoverKey = null;
-
-  if (activeDrag !== null && smoothY > H - ZONE_HEIGHT - 40) {
-      const hoveredZone = ZONES.find(z => smoothX > z.x && smoothX < z.x + z.w);
-      if (hoveredZone) hoverKey = hoveredZone.key;
-  }
-
-  ZONES.forEach(z => {
-    const isHovered = (z.key === hoverKey);
-    ctx.fillStyle = isHovered ? z.color : z.color + 'aa';
-    const yOffset = isHovered ? -15 : 0; 
-    
-    ctx.beginPath();
-    ctx.roundRect(z.x + 4, z.y + 4 + yOffset, z.w - 8, z.h - 8, 18);
-    ctx.fill();
-    ctx.strokeStyle = z.color; ctx.lineWidth = 3; ctx.stroke();
-
-    ctx.font = isHovered ? 'bold 2.8rem Tajawal' : 'bold 2.4rem Tajawal';
-    ctx.fillStyle = z.textColor;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(z.label, z.x + z.w / 2, z.y + z.h / 2 + yOffset);
-  });
-}
-
-function drawWord(w) {
-  ctx.save();
-  ctx.globalAlpha = w.opacity;
-  const fontSize = 1.7;
-  ctx.font = `bold ${fontSize}rem Tajawal, sans-serif`;
-  const tw = ctx.measureText(w.word).width;
-  const th = fontSize * 16 * 1.6;
-  const bw = tw + 36; const bh = th + 18;
-  w.w = bw; w.h = bh;
-
-  ctx.fillStyle = w.isGolden ? 'var(--gold)' : '#0f3460';
-  ctx.beginPath();
-  ctx.roundRect(w.x - bw/2, w.y - bh/2, bw, bh, 14);
-  ctx.fill();
-
-  ctx.strokeStyle = w.dragging ? '#fff' : (w.isGolden ? '#fff' : 'rgba(255,255,255,0.35)');
-  ctx.lineWidth = w.dragging || w.isGolden ? 3 : 1.5;
-  ctx.stroke();
-
-  ctx.fillStyle = w.isGolden ? '#111' : '#fff';
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText(w.word, w.x, w.y);
-  ctx.restore();
-}
-
-function drawFinger() {
-  if (smoothX < 0) return;
-  ctx.save();
-  ctx.beginPath(); ctx.arc(smoothX, smoothY, 22, 0, Math.PI * 2);
-  ctx.fillStyle = activeDrag !== null ? 'rgba(6, 214, 160, 0.4)' : 'rgba(255,255,255,0.12)';
-  ctx.fill();
-  ctx.strokeStyle = activeDrag !== null ? '#06d6a0' : 'rgba(255,255,255,0.8)';
-  ctx.lineWidth = 2.5; ctx.stroke();
-  
-  ctx.beginPath(); ctx.arc(smoothX, smoothY, 8, 0, Math.PI * 2);
-  ctx.fillStyle = '#FFE66D'; ctx.fill();
-  ctx.restore();
-}
-
-// ============================================================
-//  GAME LOOP (Delta Time + Smart Snapping)
-// ============================================================
-function update(dtScale) {
-  if (!gameRunning || isPaused) return;
-
-  spawnTimer += dtScale;
-  const W = canvas._logicalW || canvas.width;
-  const H = canvas._logicalH || canvas.height;
-
-  smoothX = fingerX;
-  smoothY = fingerY;
-
-  const activeWords = wordPool.filter(w => w.active);
-
-  if (spawnTimer >= SPAWN_INTERVAL && activeWords.filter(w => !w.dying).length < 3) {
-    spawnWord();
-    spawnTimer = 0;
-  }
-
-  // إفلات الكلمة إذا ضاعت اليد
-  if (smoothX < 0 && activeDrag !== null) {
-      const draggedWord = activeWords.find(w => w.id === activeDrag);
-      if (draggedWord) draggedWord.dragging = false;
-      activeDrag = null;
-  }
-
-  for (let w of activeWords) {
-    if (w.dying) {
-      w.opacity -= 0.08 * dtScale;
-      if (w.opacity <= 0) w.active = false; // العودة للمستودع
-      continue;
-    }
-
-    const dist = Math.hypot(smoothX - w.x, smoothY - w.y);
-    
-    // التقاط
-    if (activeDrag === null && smoothX > 0) {
-        if (dist < (w.w / 2 + 30)) { w.dragging = true; activeDrag = w.id; }
-    } else if (activeDrag === w.id) {
-        if (smoothX > 0) { w.x = smoothX; w.y = smoothY; }
-    }
-
-    // سقوط مع حساب الزمن
-    if (!w.dragging) {
-      w.vy = Math.min(w.vy + 0.05 * dtScale, WORD_SPEED_BASE + score * 0.005);
-      w.y += w.vy * dtScale;
-    }
-
-    w.x = Math.max(w.w/2, Math.min(W - w.w/2, w.x));
-
-    // تقييم ملامسة الصندوق
-    if (w.y + w.h/2 >= H - ZONE_HEIGHT) {
-      const hitZone = ZONES.find(z => w.x > z.x && w.x < z.x + z.w);
-      if (hitZone) {
-          if (activeDrag === w.id) activeDrag = null;
-          classify(w, hitZone.key); 
-          continue; 
+      if(!w.dragging && w.y > ch + 70){
+        w.dying = true;
+        state.combo = 0;
+        if(settings.mode === 'challenge'){
+          state.lives -= 1;
+          state.wrong += 1;
+          state.missed.push({ word:w.word, correct:w.type, chosen:'ضاعت', explanation:teacherExplanation(w.type) });
+          if(state.lives <= 0) finishGame();
+        }
+        showFeedback(`ضاعت "${w.word}"`, 'bad');
+        updateHud();
       }
     }
 
-    // ضياع الكلمة
-    if (w.y - w.h/2 > H + 10) {
-      if (activeDrag === w.id) activeDrag = null;
-      showFeedback(`هذا ${w.type} ← ضائع!`, 'wrong');
-      lives--;
-      w.dying = true;
-      checkGameOver();
+    for(const p of state.particles){
+      if(!p.active) continue;
+      p.life -= dt;
+      if(p.life <= 0){ p.active = false; continue; }
+      p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 180 * dt;
     }
   }
 
-  updateParticles(dtScale);
-}
-
-function draw() {
-  const W = canvas._logicalW || canvas.width;
-  const H = canvas._logicalH || canvas.height;
-  ctx.clearRect(0, 0, W, H);
-  if (!gameRunning && !gameOver) return;
-
-  drawZones();
-  wordPool.filter(w => w.active).forEach(w => drawWord(w));
-  drawParticles();
-  if(!isPaused) drawFinger(); // إخفاء الإصبع مؤقتاً أثناء التوقف
-
-  const lifeStr = '❤️'.repeat(lives) + '🖤'.repeat(Math.max(0, 5 - lives));
-  ctx.font = '1.1rem Tajawal, sans-serif';
-  ctx.fillStyle = '#fff';
-  ctx.textAlign = 'right'; ctx.textBaseline = 'top';
-  ctx.fillText(lifeStr, W - 12, 8);
-}
-
-function classify(w, zoneKey) {
-  if (w.dying) return;
-  w.dying = true;
-
-  if (w.type === zoneKey) {
-    statCorrect++;
-    let points = 10;
-    if (w.isGolden) {
-        points = 25; lives = Math.min(5, lives + 1);
-        showFeedback('✨ كلمة ذهبية! +1 قلب 💖', 'golden');
-        spawnParticles(w.x, w.y, 'var(--gold)');
-    } else {
-        showFeedback('✅ صحيح! +10', 'correct');
-        spawnParticles(w.x, w.y, '#06d6a0');
-    }
-    score += points; document.getElementById('score-display').textContent = score;
-    playSound('correct');
-  } else {
-    statWrong++;
-    missedWords.push({ word: w.word, type: w.type, guessed: zoneKey });
-    score = Math.max(0, score - 5);
-    document.getElementById('score-display').textContent = score;
-    showFeedback(`❌ خطأ! هذا ${w.type}`, 'wrong');
-    playSound('wrong'); lives--; checkGameOver();
-  }
-}
-
-function getAchievementTitle(finalScore) {
-    if (finalScore < 50) return "نَحْوِيٌّ مُبْتَدِئٌ 🌱";
-    if (finalScore < 150) return "نَحْوِيٌّ مُبْدِعٌ 🌟";
-    return "سِيبَوَيْهِ الصَّغِيرُ! 👑";
-}
-
-function checkGameOver() {
-  if (lives <= 0) {
-    gameRunning = false; gameOver = true; isPaused = false;
-    playSound('gameover');
-    document.getElementById('final-score').textContent = score + ' نقطة';
-    document.getElementById('stat-correct').textContent = statCorrect;
-    document.getElementById('stat-wrong').textContent = statWrong;
-    document.getElementById('achievement-title').textContent = getAchievementTitle(score);
-    setTimeout(() => { document.getElementById('game-over-screen').classList.remove('hidden'); }, 800);
-  }
-}
-
-function showFeedback(msg, type) {
-  const toast = document.getElementById('feedback-toast');
-  toast.textContent = msg; toast.className = `show ${type}`;
-  clearTimeout(feedbackTimer);
-  feedbackTimer = setTimeout(() => { toast.className = ''; }, 1600);
-}
-
-// حلقة اللعبة المعتمدة على الزمن (Delta Time)
-function gameLoop(timestamp) {
-  let dt = (timestamp - lastTime) / 1000 || 0;
-  lastTime = timestamp;
-  if (dt > 0.1) dt = 0.1; // منع القفزات عند البطء الشديد (Lag cap)
-  
-  const dtScale = dt * 60; // 1 عند 60 إطار في الثانية
-  
-  update(dtScale);
   draw();
-  requestAnimationFrame(gameLoop);
+  requestAnimationFrame(gameStep);
 }
 
-function startGame() {
-  score = 0; lives = 5; spawnTimer = 0; activeDrag = null; 
-  statCorrect = 0; statWrong = 0; missedWords = [];
-  wordPool.forEach(w => w.active = false);
-  particlePool.forEach(p => p.active = false);
-  document.getElementById('score-display').textContent = '0';
-  document.querySelectorAll('.overlay').forEach(el => el.classList.add('hidden'));
-  gameRunning = true; gameOver = false; isPaused = false;
-  lastTime = performance.now();
-  resizeCanvas();
+function drawWord(w){
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, w.opacity);
+  const fontSize = settings.boardMode ? 34 : 28;
+  ctx.font = `900 ${fontSize}px Tahoma, Arial, sans-serif`;
+  const tw = ctx.measureText(w.word).width;
+  w.w = tw + 38; w.h = fontSize + 26;
+  const x = w.x - w.w/2, y = w.y - w.h/2;
+
+  ctx.fillStyle = w.dragging ? '#18497f' : '#0f3460';
+  roundRect(ctx, x, y, w.w, w.h, 16);
+  ctx.fill();
+  ctx.lineWidth = w.dragging ? 4 : 2;
+  ctx.strokeStyle = w.dragging ? '#fff' : 'rgba(255,255,255,.2)';
+  ctx.stroke();
+  ctx.fillStyle = '#fff';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(w.word, w.x, w.y+2);
+  ctx.restore();
 }
+function roundRect(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+}
+function draw(){
+  ctx.clearRect(0,0,cw,ch);
 
-document.getElementById('btn-start').addEventListener('click', startGame);
-document.getElementById('btn-restart').addEventListener('click', startGame);
-
-document.getElementById('btn-review').addEventListener('click', () => {
-  document.getElementById('game-over-screen').classList.add('hidden');
-  const list = document.getElementById('review-list');
-  list.innerHTML = '';
-  if (missedWords.length === 0) {
-    list.innerHTML = '<p style="color:var(--correct);font-size:1.2rem;">🎉 لا توجد أخطاء! أحسنت!</p>';
-  } else {
-    missedWords.forEach(m => {
-      const card = document.createElement('div'); card.className = 'review-card';
-      card.innerHTML = `<div class="rword">${m.word}</div><div class="rtype">✅ هذا ${m.type}</div><div class="rwrong">❌ وضعته في: ${m.guessed}</div>`;
-      list.appendChild(card);
-    });
+  const zones = zoneRects();
+  for(const z of zones){
+    const activeDragged = state.pool.find(w => w.dragging);
+    const hover = activeDragged && activeDragged.x >= z.x && activeDragged.x <= z.x+z.w && activeDragged.y >= z.y;
+    ctx.save();
+    ctx.fillStyle = hover ? z.color : z.color + 'cc';
+    roundRect(ctx, z.x+4, z.y+4 - (hover?12:0), z.w-8, z.h-8, 18);
+    ctx.fill();
+    ctx.lineWidth = hover ? 4 : 2;
+    ctx.strokeStyle = hover ? '#fff' : 'rgba(255,255,255,.15)';
+    ctx.stroke();
+    ctx.fillStyle = z.text;
+    ctx.font = `900 ${settings.boardMode ? 44 : 36}px Tahoma, Arial, sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(z.label, z.x + z.w/2, z.y + z.h/2 - (hover?12:0));
+    ctx.restore();
   }
-  document.getElementById('review-screen').classList.remove('hidden');
+
+  for(const w of state.pool){ if(w.active) drawWord(w); }
+
+  for(const p of state.particles){
+    if(!p.active) continue;
+    ctx.save();
+    ctx.globalAlpha = p.life / p.maxLife;
+    ctx.fillStyle = p.color;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+
+  if(state.pointerX > -100){
+    ctx.save();
+    ctx.beginPath(); ctx.arc(state.pointerX,state.pointerY,22,0,Math.PI*2);
+    ctx.fillStyle = 'rgba(255,255,255,.15)'; ctx.fill();
+    ctx.strokeStyle = state.pool.some(w => w.dragging) ? '#06d6a0' : '#fff';
+    ctx.lineWidth = 3; ctx.stroke();
+    ctx.beginPath(); ctx.arc(state.pointerX,state.pointerY,7,0,Math.PI*2);
+    ctx.fillStyle = '#ffe66d'; ctx.fill();
+    ctx.restore();
+  }
+}
+
+function pointerMove(clientX, clientY){
+  const rect = els.gameCanvas.getBoundingClientRect();
+  state.pointerX = clamp(clientX - rect.left, 0, rect.width);
+  state.pointerY = clamp(clientY - rect.top, 0, rect.height);
+  state.hasTracking = true;
+}
+window.addEventListener('pointermove', e => {
+  if(settings.useCamera) return;
+  pointerMove(e.clientX, e.clientY);
+});
+window.addEventListener('pointerdown', e => {
+  if(settings.useCamera) return;
+  pointerMove(e.clientX, e.clientY);
+});
+window.addEventListener('pointerup', () => {
+  for(const w of state.pool){ w.dragging = false; }
 });
 
-document.getElementById('btn-review-back').addEventListener('click', () => {
-  document.getElementById('review-screen').classList.add('hidden');
-  document.getElementById('game-over-screen').classList.remove('hidden');
+els.toggleCameraBtn.addEventListener('click', () => {
+  settings.showCamera = !settings.showCamera;
+  saveSettings(); applyVisualSettings();
+});
+els.toggleTeacherBtn.addEventListener('click', () => {
+  els.teacherOverlay.classList.remove('hidden');
+});
+els.toggleBoardBtn.addEventListener('click', () => {
+  settings.boardMode = !settings.boardMode;
+  saveSettings(); applyVisualSettings(); resize();
+});
+els.installBtn.addEventListener('click', triggerInstall);
+els.calibrateBtn.addEventListener('click', startCalibration);
+els.startBtn.addEventListener('click', startGame);
+els.resumeBtn.addEventListener('click', () => {
+  state.paused = false; els.pauseOverlay.classList.add('hidden');
+});
+els.switchToPointerBtn.addEventListener('click', () => {
+  settings.useCamera = false; saveSettings(); syncSettingsToUI();
+  state.paused = false; els.pauseOverlay.classList.add('hidden');
+  showFeedback('تم تفعيل التحكم باللمس/الفأرة', 'gold');
+});
+els.restartBtn.addEventListener('click', () => {
+  els.gameOverOverlay.classList.add('hidden');
+  startGame();
+});
+els.closeSummaryBtn.addEventListener('click', () => {
+  els.gameOverOverlay.classList.add('hidden');
+  els.startOverlay.classList.remove('hidden');
 });
 
-function playSound(type) {
-  try {
-    const ac = getAudioCtx(); const osc = ac.createOscillator(); const gain = ac.createGain();
-    osc.connect(gain); gain.connect(ac.destination);
-    if (type === 'correct') {
-      osc.frequency.setValueAtTime(520, ac.currentTime); osc.frequency.setValueAtTime(660, ac.currentTime + 0.1);
-      gain.gain.setValueAtTime(0.25, ac.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.35);
-      osc.start(); osc.stop(ac.currentTime + 0.35);
-    } else if (type === 'wrong') {
-      osc.type = 'sawtooth'; osc.frequency.setValueAtTime(220, ac.currentTime); osc.frequency.setValueAtTime(160, ac.currentTime + 0.1);
-      gain.gain.setValueAtTime(0.2, ac.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.3);
-      osc.start(); osc.stop(ac.currentTime + 0.3);
-    } else if (type === 'gameover') {
-      osc.type = 'triangle'; osc.frequency.setValueAtTime(300, ac.currentTime); osc.frequency.exponentialRampToValueAtTime(80, ac.currentTime + 0.6);
-      gain.gain.setValueAtTime(0.3, ac.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.6);
-      osc.start(); osc.stop(ac.currentTime + 0.6);
+function applyStartPanel(){
+  settings.mode = els.modeSelect.value;
+  settings.level = els.levelSelect.value;
+  settings.useCamera = els.useCameraCheck.checked;
+  settings.sound = els.soundCheck.checked;
+  settings.showCamera = els.cameraVisibleCheck.checked;
+  settings.boardMode = els.boardModeCheck.checked;
+  saveSettings(); syncSettingsToUI(); resize();
+}
+['modeSelect','levelSelect','useCameraCheck','soundCheck','cameraVisibleCheck','boardModeCheck'].forEach(id => {
+  document.getElementById(id).addEventListener('change', applyStartPanel);
+});
+
+els.teacherSaveBtn.addEventListener('click', () => {
+  settings.mode = els.teacherMode.value;
+  settings.level = els.teacherLevel.value;
+  settings.useCamera = els.teacherUseCamera.checked;
+  settings.showCamera = els.teacherCameraVisible.checked;
+  settings.boardMode = els.teacherBoardMode.checked;
+  settings.sound = els.teacherSound.checked;
+  saveSettings();
+  syncSettingsToUI();
+  resize();
+  els.teacherOverlay.classList.add('hidden');
+  showFeedback('تم حفظ إعدادات المعلم', 'gold');
+});
+els.teacherResetStatsBtn.addEventListener('click', () => {
+  persistedResults = { highScore:0, sessions:0, totals:{correct:0, wrong:0} };
+  saveResults();
+  showFeedback('تم تصفير النتائج المحفوظة', 'bad');
+});
+els.teacherCloseBtn.addEventListener('click', () => els.teacherOverlay.classList.add('hidden'));
+
+function restoreCalibration(){
+  try{
+    const calib = JSON.parse(localStorage.getItem(APP_KEY + '.calib') || 'null');
+    if(calib && typeof calib.minX === 'number'){
+      state.calib = calib;
+      state.calibrated = true;
     }
-  } catch(e) {}
+  }catch{}
 }
 
-function spawnParticles(x, y, color) {
-  let count = 0;
-  for (let p of particlePool) {
-      if (!p.active) {
-          const angle = Math.random() * Math.PI * 2;
-          const speed = 2 + Math.random() * 5;
-          p.x = x; p.y = y;
-          p.vx = Math.cos(angle) * speed; p.vy = Math.sin(angle) * speed - 2;
-          p.life = 1.0; p.decay = 0.04 + Math.random() * 0.03;
-          p.r = 4 + Math.random() * 6; p.color = color;
-          p.active = true;
-          count++;
-          if(count >= 12) break; // 12 جسيماً للمرة
-      }
-  }
+async function boot(){
+  syncSettingsToUI();
+  restoreCalibration();
+  resize();
+  registerPWA();
+  updateHud();
+  await initCamera();
+  requestAnimationFrame(gameStep);
 }
-
-function updateParticles(dtScale) {
-  for (let p of particlePool) {
-      if (p.active) {
-          p.x += p.vx * dtScale; p.y += p.vy * dtScale;
-          p.vy += 0.15 * dtScale; p.life -= p.decay * dtScale;
-          if (p.life <= 0) p.active = false; // إعادة للمستودع
-      }
-  }
-}
-
-function drawParticles() {
-  particlePool.filter(p => p.active).forEach(p => {
-    ctx.save(); ctx.globalAlpha = p.life; ctx.fillStyle = p.color;
-    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill(); ctx.restore();
-  });
-}
-
-resizeCanvas();
-initCamera();
-requestAnimationFrame(gameLoop);
+boot();
 </script>
 </body>
 </html>

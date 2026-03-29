@@ -1,62 +1,72 @@
-const CACHE_NAME = 'grammar-game-cache-v1';
-
-// الملفات الأساسية التي يجب تخزينها فور تثبيت التطبيق
-const ASSETS_TO_CACHE = [
-    './',
-    './index.html'
+const CACHE_NAME = 'arabic-words-game-v1';
+const APP_SHELL = [
+  './',
+  './index.html',
+  './manifest.webmanifest',
+  './icons/icon-192.png',
+  './icons/icon-512.png'
 ];
 
-// 1. حدث التثبيت (Install)
-self.addEventListener('install', (event) => {
-    event.waitUntil(
-        caches.open(CACHE_NAME).then((cache) => {
-            console.log('تم فتح الذاكرة المؤقتة (Cache)');
-            return cache.addAll(ASSETS_TO_CACHE);
-        })
-    );
-    self.skipWaiting();
+self.addEventListener('install', event => {
+  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL)));
+  self.skipWaiting();
 });
 
-// 2. حدث التفعيل (Activate) - لتنظيف أي نسخ قديمة من الذاكرة
-self.addEventListener('activate', (event) => {
-    event.waitUntil(
-        caches.keys().then((cacheNames) => {
-            return Promise.all(
-                cacheNames.map((cache) => {
-                    if (cache !== CACHE_NAME) {
-                        console.log('جاري حذف الذاكرة المؤقتة القديمة:', cache);
-                        return caches.delete(cache);
-                    }
-                })
-            );
-        })
-    );
-    self.clients.claim();
+self.addEventListener('activate', event => {
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)));
+    await self.clients.claim();
+  })());
 });
 
-// 3. حدث الجلب (Fetch) - اعتراض الطلبات واستخدام الذاكرة المؤقتة للعمل بدون إنترنت
-self.addEventListener('fetch', (event) => {
-    event.respondWith(
-        caches.match(event.request).then((cachedResponse) => {
-            // إذا كان الملف موجوداً في الذاكرة المؤقتة، قم بإرجاعه
-            if (cachedResponse) {
-                return cachedResponse;
-            }
-            // إذا لم يكن موجوداً، قم بجلبه من الإنترنت ثم احفظ نسخة منه
-            return fetch(event.request).then((response) => {
-                // تجنب حفظ الردود الخاطئة
-                if(!response || response.status !== 200 || response.type !== 'basic') {
-                    return response;
-                }
-                const responseToCache = response.clone();
-                caches.open(CACHE_NAME).then((cache) => {
-                    cache.put(event.request, responseToCache);
-                });
-                return response;
-            }).catch(() => {
-                // ماذا يحدث عند انقطاع الإنترنت وعدم وجود الملف في الذاكرة
-                console.log('أنت تعمل الآن في وضع عدم الاتصال (Offline).');
-            });
-        })
-    );
+self.addEventListener('fetch', event => {
+  const req = event.request;
+  if (req.method !== 'GET') return;
+
+  const url = new URL(req.url);
+
+  // Navigation: offline fallback to index.html
+  if (req.mode === 'navigate') {
+    event.respondWith((async () => {
+      try {
+        const fresh = await fetch(req);
+        const cache = await caches.open(CACHE_NAME);
+        cache.put('./index.html', fresh.clone());
+        return fresh;
+      } catch {
+        const cache = await caches.open(CACHE_NAME);
+        return (await cache.match('./index.html')) || Response.error();
+      }
+    })());
+    return;
+  }
+
+  // Cache-first for app shell
+  if (url.origin === location.origin) {
+    event.respondWith((async () => {
+      const cache = await caches.open(CACHE_NAME);
+      const cached = await cache.match(req);
+      if (cached) return cached;
+      try {
+        const fresh = await fetch(req);
+        cache.put(req, fresh.clone());
+        return fresh;
+      } catch {
+        return cached || Response.error();
+      }
+    })());
+    return;
+  }
+
+  // Stale-while-revalidate for CDN assets
+  event.respondWith((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    const cached = await cache.match(req);
+    const fetchPromise = fetch(req).then(res => {
+      if (res && (res.ok || res.type === 'opaque')) cache.put(req, res.clone());
+      return res;
+    }).catch(() => cached);
+    return cached || fetchPromise;
+  })());
 });
