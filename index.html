@@ -141,7 +141,7 @@ select{
       <button class="toolbtn ghost" id="toggleCameraBtn">إخفاء الكاميرا</button>
       <button class="toolbtn ghost" id="toggleTeacherBtn">وضع المعلم</button>
       <button class="toolbtn ghost" id="toggleBoardBtn">وضع السبورة</button>
-      <button class="toolbtn success hidden" id="installBtn">تثبيت التطبيق</button>
+      <button class="toolbtn success" id="installBtn">تثبيت التطبيق</button>
     </div>
 
     <div class="feedback" id="feedback"></div>
@@ -231,6 +231,19 @@ select{
       </div>
     </div>
 
+
+
+    <div class="overlay hidden" id="installHelpOverlay">
+      <div class="card" style="max-width:700px">
+        <h2>📲 تثبيت التطبيق</h2>
+        <p id="installHelpText">يمكن تثبيت التطبيق من قائمة المتصفح إذا لم يظهر التثبيت التلقائي.</p>
+        <div class="actions">
+          <button class="btn success" id="installTryAgainBtn">محاولة التثبيت الآن</button>
+          <button class="btn" id="installHelpCloseBtn">إغلاق</button>
+        </div>
+      </div>
+    </div>
+
     <div class="overlay hidden" id="teacherOverlay">
       <div class="card">
         <h2>🧑‍🏫 وضع المعلم</h2>
@@ -291,10 +304,46 @@ select{
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
 <script>
-const VERSION = '1.0.0';
+window.MEDIA_PIPE_CONFIG = {
+  localFirst: true,
+  scripts: [
+    './vendor/mediapipe/camera_utils/camera_utils.js',
+    './vendor/mediapipe/hands/hands.js'
+  ],
+  fallbackScripts: [
+    'https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js',
+    'https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js'
+  ],
+  handsBaseLocal: './vendor/mediapipe/hands/',
+  handsBaseCdn: 'https://cdn.jsdelivr.net/npm/@mediapipe/hands/'
+};
+async function loadScript(src){
+  return new Promise((resolve,reject)=>{
+    const s=document.createElement('script');
+    s.src=src; s.async=false;
+    s.onload=()=>resolve(src);
+    s.onerror=()=>reject(new Error('Failed '+src));
+    document.head.appendChild(s);
+  });
+}
+async function loadMediaPipe(){
+  const cfg=window.MEDIA_PIPE_CONFIG;
+  try{
+    if(cfg.localFirst){
+      for(const src of cfg.scripts) await loadScript(src);
+      window.MEDIA_PIPE_CONFIG.loadedFrom='local';
+      return;
+    }
+  }catch(err){
+    console.warn('Local MediaPipe load failed, fallback to CDN', err);
+  }
+  for(const src of cfg.fallbackScripts) await loadScript(src);
+  window.MEDIA_PIPE_CONFIG.loadedFrom='cdn';
+}
+</script>
+<script>
+const VERSION = '1.1.0';
 const APP_KEY = 'arabicWordsGame.v1';
 const SETTINGS_KEY = APP_KEY + '.settings';
 const RESULTS_KEY = APP_KEY + '.results';
@@ -368,13 +417,14 @@ const els = {};
  'calibrateBtn','startBtn','resumeBtn','switchToPointerBtn','restartBtn','closeSummaryBtn',
  'btnStart','modeSelect','levelSelect','useCameraCheck','soundCheck','cameraVisibleCheck','boardModeCheck',
  'teacherMode','teacherLevel','teacherUseCamera','teacherCameraVisible','teacherBoardMode','teacherSound',
- 'teacherSaveBtn','teacherResetStatsBtn','teacherCloseBtn'
+ 'teacherSaveBtn','teacherResetStatsBtn','teacherCloseBtn','installHelpOverlay','installHelpText','installTryAgainBtn','installHelpCloseBtn'
 ].forEach(id => els[id] = document.getElementById(id));
 
 const ctx = els.gameCanvas.getContext('2d');
 let cw = 0, ch = 0;
 let mpHands = null, mpCamera = null;
 let deferredPrompt = null;
+let installCapability = 'unknown';
 let audioCtx = null;
 let lastTs = performance.now();
 
@@ -598,7 +648,8 @@ async function initCamera(){
     return;
   }
 
-  mpHands = new Hands({ locateFile:file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
+  const mpBase = (window.MEDIA_PIPE_CONFIG.loadedFrom === 'local') ? window.MEDIA_PIPE_CONFIG.handsBaseLocal : window.MEDIA_PIPE_CONFIG.handsBaseCdn;
+  mpHands = new Hands({ locateFile:file => `${mpBase}${file}` });
   mpHands.setOptions({
     maxNumHands:1,
     modelComplexity:1,
@@ -699,27 +750,51 @@ patchHandResultsForCalibration();
 
 function registerPWA(){
   if('serviceWorker' in navigator){
-    navigator.serviceWorker.register('./sw.js').catch(err => console.warn('SW register failed', err));
+    navigator.serviceWorker.register('./sw.js').then(()=>{
+      els.installHint.textContent = 'تم تفعيل العمل دون اتصال بعد أول فتح ناجح.';
+    }).catch(err => console.warn('SW register failed', err));
+  }
+  const installed = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+  if(installed){
+    installCapability = 'installed';
+    els.installBtn.textContent = 'التطبيق مثبت';
+    els.installBtn.disabled = true;
   }
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
-    els.installBtn.classList.remove('hidden');
-    els.installHint.textContent = 'التطبيق جاهز للتثبيت من هذا الزر أو من زر المتصفح.';
+    installCapability = 'prompt';
+    els.installBtn.disabled = false;
+    els.installBtn.textContent = 'تثبيت التطبيق';
+    els.installHint.textContent = 'التطبيق جاهز للتثبيت من هذا الزر.';
   });
   window.addEventListener('appinstalled', () => {
     deferredPrompt = null;
-    els.installBtn.classList.add('hidden');
+    installCapability = 'installed';
+    els.installBtn.textContent = 'تم التثبيت';
+    els.installBtn.disabled = true;
     els.installHint.textContent = 'تم تثبيت التطبيق بنجاح.';
   });
 }
 async function triggerInstall(){
-  if(!deferredPrompt) return;
-  const result = await deferredPrompt.prompt();
-  deferredPrompt = null;
-  if(result?.outcome === 'accepted'){
-    els.installBtn.classList.add('hidden');
+  if(deferredPrompt){
+    deferredPrompt.prompt();
+    try{ await deferredPrompt.userChoice; }catch{}
+    deferredPrompt = null;
+    return;
   }
+  const ua = navigator.userAgent || '';
+  const isiPhone = /iPhone|iPad|iPod/i.test(ua);
+  const isAndroid = /Android/i.test(ua);
+  const isEdge = /Edg/i.test(ua);
+  const isChrome = /Chrome/i.test(ua) && !isEdge;
+  const isSafari = /Safari/i.test(ua) && !/Chrome|CriOS|Edg/i.test(ua);
+  let help = 'إذا لم يظهر التثبيت التلقائي، افتح قائمة المتصفح ثم اختر تثبيت التطبيق أو إضافة إلى الشاشة الرئيسية.';
+  if(isiPhone && isSafari) help = 'على iPhone/iPad في Safari: اضغط زر المشاركة ثم اختر «Add to Home Screen». ';
+  else if(isAndroid && (isChrome || isEdge)) help = 'على Android في Chrome/Edge: افتح قائمة المتصفح ثم اختر «Install app» أو «Add to Home screen». ';
+  else if(isChrome || isEdge) help = 'على الحاسوب في Chrome/Edge: افتح قائمة المتصفح ثم اختر «Install app»، أو استعمل أيقونة التثبيت في شريط العنوان إذا ظهرت.';
+  els.installHelpText.textContent = help;
+  els.installHelpOverlay.classList.remove('hidden');
 }
 
 function gameStep(ts){
@@ -907,6 +982,8 @@ els.toggleBoardBtn.addEventListener('click', () => {
   saveSettings(); applyVisualSettings(); resize();
 });
 els.installBtn.addEventListener('click', triggerInstall);
+els.installTryAgainBtn.addEventListener('click', triggerInstall);
+els.installHelpCloseBtn.addEventListener('click', ()=> els.installHelpOverlay.classList.add('hidden'));
 els.calibrateBtn.addEventListener('click', startCalibration);
 els.startBtn.addEventListener('click', startGame);
 els.resumeBtn.addEventListener('click', () => {
@@ -975,7 +1052,20 @@ async function boot(){
   resize();
   registerPWA();
   updateHud();
-  await initCamera();
+  try{
+    await loadMediaPipe();
+    await initCamera();
+    els.installHint.textContent = window.MEDIA_PIPE_CONFIG.loadedFrom === 'local'
+      ? 'تم تحميل MediaPipe محلياً من المستودع.'
+      : 'تم تحميل MediaPipe من CDN لأن الملفات المحلية غير موجودة بعد.';
+  }catch(err){
+    console.error(err);
+    settings.useCamera = false;
+    saveSettings();
+    syncSettingsToUI();
+    els.camStatus.textContent = '📷 تعذر تحميل ملفات تتبع اليد';
+    els.installHint.textContent = 'يمكن اللعب باللمس/الفأرة حالياً. لإتاحة التتبع أوفلاين ضع ملفات MediaPipe المحلية داخل vendor/mediapipe/.';
+  }
   requestAnimationFrame(gameStep);
 }
 boot();
