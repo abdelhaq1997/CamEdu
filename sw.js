@@ -1,11 +1,10 @@
-const CACHE_NAME = 'arabic-words-game-v2';
+const CACHE_NAME = 'arabic-words-game-v1';
 const APP_SHELL = [
   './',
   './index.html',
   './manifest.webmanifest',
   './icons/icon-192.png',
-  './icons/icon-512.png',
-  './vendor/mediapipe/README.txt'
+  './icons/icon-512.png'
 ];
 
 self.addEventListener('install', event => {

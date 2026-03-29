@@ -141,7 +141,7 @@ select{
       <button class="toolbtn ghost" id="toggleCameraBtn">إخفاء الكاميرا</button>
       <button class="toolbtn ghost" id="toggleTeacherBtn">وضع المعلم</button>
       <button class="toolbtn ghost" id="toggleBoardBtn">وضع السبورة</button>
-      <button class="toolbtn success" id="installBtn">تثبيت التطبيق</button>
+      <button class="toolbtn success hidden" id="installBtn">تثبيت التطبيق</button>
     </div>
 
     <div class="feedback" id="feedback"></div>
@@ -150,6 +150,7 @@ select{
       <div class="hudbox" id="livesBox">❤️ 5</div>
       <div class="hudbox" id="modeBox">النمط: تدريب</div>
       <div class="hudbox" id="levelBox">المستوى: سهل</div>
+      <div class="hudbox" id="remainingBox">المتبقي: 0</div>
     </div>
 
     <div class="overlay" id="startOverlay">
@@ -175,6 +176,13 @@ select{
             <div class="actions">
               <button class="btn" id="calibrateBtn">📐 معايرة اليد</button>
               <button class="btn success" id="startBtn">▶ ابدأ اللعبة</button>
+            </div>
+            <div class="panel" style="margin-top:12px">
+              <div style="display:flex;gap:10px;flex-wrap:wrap">
+                <div class="hudbox" id="startWordsInfo">بطاقة الكلمات: كبيرة ومتنوعة</div>
+                <div class="hudbox" id="startHighScore">أفضل نتيجة محفوظة: 0</div>
+              </div>
+              <p class="note" style="margin-top:10px">لا تتكرر الكلمة نفسها بسرعة: اللعبة تستعمل رزمة كلمات وتؤخر إعادة الكلمات الأخيرة.</p>
             </div>
             <div class="installhint" id="installHint">
               للتثبيت على الهاتف أو الحاسوب يجب تشغيل اللعبة من رابط HTTPS مثل GitHub Pages، وليس من فتح الملف مباشرة.
@@ -227,19 +235,6 @@ select{
         <div class="actions" style="justify-content:center">
           <button class="btn success" id="resumeBtn">استئناف</button>
           <button class="btn" id="switchToPointerBtn">التحكم باللمس/الفأرة</button>
-        </div>
-      </div>
-    </div>
-
-
-
-    <div class="overlay hidden" id="installHelpOverlay">
-      <div class="card" style="max-width:700px">
-        <h2>📲 تثبيت التطبيق</h2>
-        <p id="installHelpText">يمكن تثبيت التطبيق من قائمة المتصفح إذا لم يظهر التثبيت التلقائي.</p>
-        <div class="actions">
-          <button class="btn success" id="installTryAgainBtn">محاولة التثبيت الآن</button>
-          <button class="btn" id="installHelpCloseBtn">إغلاق</button>
         </div>
       </div>
     </div>
@@ -304,67 +299,49 @@ select{
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
 <script>
-window.MEDIA_PIPE_CONFIG = {
-  localFirst: true,
-  scripts: [
-    './vendor/mediapipe/camera_utils/camera_utils.js',
-    './vendor/mediapipe/hands/hands.js'
-  ],
-  fallbackScripts: [
-    'https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js',
-    'https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js'
-  ],
-  handsBaseLocal: './vendor/mediapipe/hands/',
-  handsBaseCdn: 'https://cdn.jsdelivr.net/npm/@mediapipe/hands/'
-};
-async function loadScript(src){
-  return new Promise((resolve,reject)=>{
-    const s=document.createElement('script');
-    s.src=src; s.async=false;
-    s.onload=()=>resolve(src);
-    s.onerror=()=>reject(new Error('Failed '+src));
-    document.head.appendChild(s);
-  });
-}
-async function loadMediaPipe(){
-  const cfg=window.MEDIA_PIPE_CONFIG;
-  try{
-    if(cfg.localFirst){
-      for(const src of cfg.scripts) await loadScript(src);
-      window.MEDIA_PIPE_CONFIG.loadedFrom='local';
-      return;
-    }
-  }catch(err){
-    console.warn('Local MediaPipe load failed, fallback to CDN', err);
-  }
-  for(const src of cfg.fallbackScripts) await loadScript(src);
-  window.MEDIA_PIPE_CONFIG.loadedFrom='cdn';
-}
-</script>
-<script>
-const VERSION = '1.1.0';
+const VERSION = '1.0.0';
 const APP_KEY = 'arabicWordsGame.v1';
 const SETTINGS_KEY = APP_KEY + '.settings';
 const RESULTS_KEY = APP_KEY + '.results';
 
 const WORD_BANKS = {
   easy: {
-    'فعل': ['كَتَبَ','قَرَأَ','أَكَلَ','لَعِبَ','جَلَسَ','نَامَ'],
-    'اسم': ['قَلَمٌ','كِتَابٌ','بَيْتٌ','شَمْسٌ','بِنْتٌ','وَلَدٌ'],
-    'حرف': ['فِي','مِنْ','إِلَى','عَلَى','وَ','بِ']
+    'فعل': ['كَتَبَ','قَرَأَ','أَكَلَ','لَعِبَ','جَلَسَ','نَامَ','ذَهَبَ','رَسَمَ','فَتَحَ','شَرِبَ','رَكَضَ','سَمِعَ'],
+    'اسم': ['قَلَمٌ','كِتَابٌ','بَيْتٌ','شَمْسٌ','بِنْتٌ','وَلَدٌ','بَابٌ','قِطٌّ','قَمَرٌ','نَجْمَةٌ','حَقْلٌ','سَمَكَةٌ'],
+    'حرف': ['فِي','مِنْ','إِلَى','عَلَى','وَ','بِ','ثُمَّ','عَنْ','لَا','هَلْ','لِ','فَ']
   },
   medium: {
-    'فعل': ['رَسَمَ','فَتَحَ','سَمِعَ','رَكَضَ','ذَهَبَ','شَرِبَ'],
-    'اسم': ['مَدْرَسَةٌ','مُعَلِّمٌ','سَيَّارَةٌ','طَائِرٌ','نَهَرٌ','تُفَّاحٌ'],
-    'حرف': ['عَنْ','هَلْ','لَا','ثُمَّ','لِ','فَ']
+    'فعل': ['كَسَرَ','حَمَلَ','سَافَرَ','زَرَعَ','غَسَلَ','جَمَعَ','دَرَسَ','اِجْتَهَدَ','لَاحَظَ','حَفِظَ','سَأَلَ','أَجَابَ','اِنْتَظَرَ','نَظَّفَ','صَعِدَ'],
+    'اسم': ['مَدْرَسَةٌ','مُعَلِّمٌ','سَيَّارَةٌ','طَائِرٌ','نَهَرٌ','تُفَّاحٌ','مَدِينَةٌ','سَبُّورَةٌ','مَكْتَبٌ','حَقِيبَةٌ','حَدِيقَةٌ','مِفْتَاحٌ','مِمْحَاةٌ','دَفْتَرٌ','مَطَرٌ'],
+    'حرف': ['عَنْ','هَلْ','لَا','ثُمَّ','لِ','فَ','أَوْ','مَعَ','تَحْتَ','فَوْقَ','بَعْدَ','قَبْلَ','عِنْدَ','حَوْلَ','بَيْنَ']
   },
   hard: {
-    'فعل': ['يَكْتُبُ','يَقْرَأُ','يَلْعَبُ','يَرْسُمُ','اِسْتَمَعَ','اِنْطَلَقَ'],
-    'اسم': ['مَكْتَبَةٌ','حَقِيبَةٌ','فَصْلٌ','مِفْتَاحٌ','مِسْطَرَةٌ','حَدِيقَةٌ'],
-    'حرف': ['لَكِنْ','أَوْ','بَلْ','مَعَ','تَحْتَ','فَوْقَ']
+    'فعل': ['يَكْتُبُ','يَقْرَأُ','يَلْعَبُ','يَرْسُمُ','اِسْتَمَعَ','اِنْطَلَقَ','يُرَتِّبُ','يُسَاعِدُ','يَسْتَخْرِجُ','يُفَكِّرُ','اِسْتَفَادَ','اِقْتَرَبَ','اِنْتَبَهَ','يُنَظِّمُ','يُحَافِظُ'],
+    'اسم': ['مَكْتَبَةٌ','حَقِيبَةٌ','فَصْلٌ','مِفْتَاحٌ','مِسْطَرَةٌ','حَدِيقَةٌ','مُسْتَشْفًى','مُلَاحَظَةٌ','تَجْرِبَةٌ','مُحَافَظَةٌ','مُفَكِّرَةٌ','مَسْؤُولِيَّةٌ','تِلْمِيذَةٌ','مُنَظِّمَةٌ','مَعْرِفَةٌ'],
+    'حرف': ['لَكِنْ','أَوْ','بَلْ','مَعَ','تَحْتَ','فَوْقَ','أَمَامَ','خَلْفَ','إِلَّا','حَتَّى','رُبَّ','مُنْذُ','مُذْ','إِذَا','كَيْ']
   }
 };
+
+function getCurrentBankEntries(){
+  const bank = WORD_BANKS[settings.level];
+  const entries = [];
+  for(const [type, words] of Object.entries(bank)){
+    for(const word of words) entries.push({ type, word });
+  }
+  return entries;
+}
+
+function shuffleArray(arr){
+  const copy = [...arr];
+  for(let i = copy.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
 
 const ZONES = [
   { key:'فعل', label:'فعل', color:'#ff6b6b', text:'#111' },
@@ -394,6 +371,10 @@ let state = {
   hasTracking:false,
   handLostMs:0,
   calibrated:false,
+  currentDeck:[],
+  deckIndex:0,
+  recentWords:[],
+  manualPause:false,
   calib:{minX:0.1,maxX:0.9,minY:0.1,maxY:0.9},
   pool:[],
   particles:[]
@@ -412,19 +393,18 @@ const els = {};
 [
  'video','gameCanvas','scoreDisplay','comboDisplay','camStatus','handStatus','controlStatus','feedback',
  'startOverlay','calibOverlay','pauseOverlay','teacherOverlay','gameOverOverlay','reviewList',
- 'modeBox','levelBox','livesBox','summaryTitle','sumScore','sumCorrect','sumWrong','sumBestCombo','analysisText',
- 'calibBar','installBtn','installHint','toggleCameraBtn','toggleTeacherBtn','toggleBoardBtn',
+ 'modeBox','levelBox','livesBox','remainingBox','summaryTitle','sumScore','sumCorrect','sumWrong','sumBestCombo','analysisText',
+ 'calibBar','installBtn','installHint','toggleCameraBtn','toggleTeacherBtn','toggleBoardBtn','pauseBtn','startHighScore','startWordsInfo',
  'calibrateBtn','startBtn','resumeBtn','switchToPointerBtn','restartBtn','closeSummaryBtn',
  'btnStart','modeSelect','levelSelect','useCameraCheck','soundCheck','cameraVisibleCheck','boardModeCheck',
  'teacherMode','teacherLevel','teacherUseCamera','teacherCameraVisible','teacherBoardMode','teacherSound',
- 'teacherSaveBtn','teacherResetStatsBtn','teacherCloseBtn','installHelpOverlay','installHelpText','installTryAgainBtn','installHelpCloseBtn'
+ 'teacherSaveBtn','teacherResetStatsBtn','teacherCloseBtn'
 ].forEach(id => els[id] = document.getElementById(id));
 
 const ctx = els.gameCanvas.getContext('2d');
 let cw = 0, ch = 0;
 let mpHands = null, mpCamera = null;
 let deferredPrompt = null;
-let installCapability = 'unknown';
 let audioCtx = null;
 let lastTs = performance.now();
 
@@ -460,6 +440,8 @@ function applyVisualSettings(){
   els.modeBox.textContent = 'النمط: ' + (settings.mode === 'training' ? 'تدريب' : 'تحدي');
   els.levelBox.textContent = 'المستوى: ' + ({easy:'سهل',medium:'متوسط',hard:'صعب'})[settings.level];
   els.toggleCameraBtn.textContent = settings.showCamera ? 'إخفاء الكاميرا' : 'إظهار الكاميرا';
+  els.startHighScore.textContent = 'أفضل نتيجة محفوظة: ' + persistedResults.highScore;
+  els.startWordsInfo.textContent = 'عدد كلمات هذا المستوى: ' + getCurrentBankEntries().length;
 }
 function resize(){
   const rect = els.gameCanvas.getBoundingClientRect();
@@ -504,12 +486,40 @@ function teacherExplanation(type){
   if(type === 'فعل') return 'فعل لأنه يدل على حدث أو عمل.';
   return 'حرف لأنه لا يكتمل معناه وحده.';
 }
+function buildDeck(){
+  const entries = shuffleArray(getCurrentBankEntries());
+  const recent = new Set(state.recentWords.slice(-6));
+  if(entries.length > 1){
+    for(let i = 0; i < entries.length; i++){
+      if(!recent.has(entries[i].word)){
+        const [picked] = entries.splice(i, 1);
+        entries.unshift(picked);
+        break;
+      }
+    }
+  }
+  state.currentDeck = entries;
+  state.deckIndex = 0;
+}
 function nextWordData(){
-  const bank = WORD_BANKS[settings.level];
-  const types = Object.keys(bank);
-  const type = types[Math.floor(Math.random()*types.length)];
-  const arr = bank[type];
-  return { type, word: arr[Math.floor(Math.random()*arr.length)] };
+  if(!state.currentDeck.length || state.deckIndex >= state.currentDeck.length){
+    buildDeck();
+  }
+  let tries = 0;
+  while(tries < state.currentDeck.length){
+    const data = state.currentDeck[state.deckIndex++];
+    if(!state.recentWords.includes(data.word) || tries > 4){
+      state.recentWords.push(data.word);
+      if(state.recentWords.length > 6) state.recentWords.shift();
+      return data;
+    }
+    if(state.deckIndex >= state.currentDeck.length) buildDeck();
+    tries++;
+  }
+  const fallback = state.currentDeck[Math.min(state.deckIndex, state.currentDeck.length - 1)] || getCurrentBankEntries()[0];
+  state.recentWords.push(fallback.word);
+  if(state.recentWords.length > 6) state.recentWords.shift();
+  return fallback;
 }
 function getFreeWord(){
   return state.pool.find(w => !w.active);
@@ -594,7 +604,7 @@ function finishGame(){
   const total = state.correct + state.wrong;
   const acc = total ? Math.round((state.correct/total)*100) : 0;
   els.analysisText.textContent =
-    `الدقة ${acc}%، أعلى نتيجة محفوظة ${persistedResults.highScore}، ` +
+    `الدقة ${acc}%، أعلى نتيجة محفوظة ${persistedResults.highScore}، المتبقي في رزمة هذا المستوى ${Math.max(0, state.currentDeck.length - state.deckIndex)}، ` +
     (state.missed.length ? `أكثر حاجة تحتاج مراجعة: ${state.missed.slice(-1)[0].correct}.` : 'لم تسجّل أخطاء في هذه الجولة.');
 
   els.reviewList.innerHTML = state.missed.length
@@ -606,7 +616,9 @@ function finishGame(){
 function resetRound(){
   state.score=0; state.lives=5; state.combo=0; state.bestCombo=0;
   state.running=false; state.paused=false; state.over=false;
-  state.correct=0; state.wrong=0; state.missed=[]; state.lastSpawn=0; state.handLostMs=0;
+  state.correct=0; state.wrong=0; state.missed=[]; state.lastSpawn=0; state.handLostMs=0; state.manualPause=false;
+  state.currentDeck=[]; state.deckIndex=0; state.recentWords=[];
+  buildDeck();
   for(const w of state.pool){ w.active=false; w.dragging=false; w.dying=false; w.opacity=1; }
   for(const p of state.particles){ p.active=false; }
   updateHud();
@@ -616,12 +628,16 @@ function startGame(){
   state.running = true;
   els.startOverlay.classList.add('hidden');
   els.gameOverOverlay.classList.add('hidden');
+  updateHud();
   showFeedback(settings.mode === 'training' ? 'ابدأ التدريب' : 'ابدأ التحدي', 'gold');
 }
 function updateHud(){
   els.scoreDisplay.textContent = state.score;
   els.comboDisplay.textContent = state.combo;
   els.livesBox.textContent = settings.mode === 'challenge' ? `❤️ ${state.lives}` : '♾️ تدريب';
+  const remaining = Math.max(0, state.currentDeck.length - state.deckIndex);
+  els.remainingBox.textContent = `المتبقي: ${remaining}`;
+  els.pauseBtn.textContent = state.paused ? 'استئناف اللعب' : 'إيقاف اللعب';
 }
 function clamp(n,min,max){ return Math.max(min, Math.min(max, n)); }
 
@@ -648,8 +664,7 @@ async function initCamera(){
     return;
   }
 
-  const mpBase = (window.MEDIA_PIPE_CONFIG.loadedFrom === 'local') ? window.MEDIA_PIPE_CONFIG.handsBaseLocal : window.MEDIA_PIPE_CONFIG.handsBaseCdn;
-  mpHands = new Hands({ locateFile:file => `${mpBase}${file}` });
+  mpHands = new Hands({ locateFile:file => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
   mpHands.setOptions({
     maxNumHands:1,
     modelComplexity:1,
@@ -689,7 +704,7 @@ function onHandResults(results){
   state.hasTracking = true;
   state.lastHandSeen = performance.now();
   els.handStatus.textContent = '🖐 التتبع: يد مكتشفة';
-  if(state.paused){
+  if(state.paused && !state.manualPause){
     state.paused = false;
     els.pauseOverlay.classList.add('hidden');
   }
@@ -750,51 +765,27 @@ patchHandResultsForCalibration();
 
 function registerPWA(){
   if('serviceWorker' in navigator){
-    navigator.serviceWorker.register('./sw.js').then(()=>{
-      els.installHint.textContent = 'تم تفعيل العمل دون اتصال بعد أول فتح ناجح.';
-    }).catch(err => console.warn('SW register failed', err));
-  }
-  const installed = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-  if(installed){
-    installCapability = 'installed';
-    els.installBtn.textContent = 'التطبيق مثبت';
-    els.installBtn.disabled = true;
+    navigator.serviceWorker.register('./sw.js').catch(err => console.warn('SW register failed', err));
   }
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
-    installCapability = 'prompt';
-    els.installBtn.disabled = false;
-    els.installBtn.textContent = 'تثبيت التطبيق';
-    els.installHint.textContent = 'التطبيق جاهز للتثبيت من هذا الزر.';
+    els.installBtn.classList.remove('hidden');
+    els.installHint.textContent = 'التطبيق جاهز للتثبيت من هذا الزر أو من زر المتصفح.';
   });
   window.addEventListener('appinstalled', () => {
     deferredPrompt = null;
-    installCapability = 'installed';
-    els.installBtn.textContent = 'تم التثبيت';
-    els.installBtn.disabled = true;
+    els.installBtn.classList.add('hidden');
     els.installHint.textContent = 'تم تثبيت التطبيق بنجاح.';
   });
 }
 async function triggerInstall(){
-  if(deferredPrompt){
-    deferredPrompt.prompt();
-    try{ await deferredPrompt.userChoice; }catch{}
-    deferredPrompt = null;
-    return;
+  if(!deferredPrompt) return;
+  const result = await deferredPrompt.prompt();
+  deferredPrompt = null;
+  if(result?.outcome === 'accepted'){
+    els.installBtn.classList.add('hidden');
   }
-  const ua = navigator.userAgent || '';
-  const isiPhone = /iPhone|iPad|iPod/i.test(ua);
-  const isAndroid = /Android/i.test(ua);
-  const isEdge = /Edg/i.test(ua);
-  const isChrome = /Chrome/i.test(ua) && !isEdge;
-  const isSafari = /Safari/i.test(ua) && !/Chrome|CriOS|Edg/i.test(ua);
-  let help = 'إذا لم يظهر التثبيت التلقائي، افتح قائمة المتصفح ثم اختر تثبيت التطبيق أو إضافة إلى الشاشة الرئيسية.';
-  if(isiPhone && isSafari) help = 'على iPhone/iPad في Safari: اضغط زر المشاركة ثم اختر «Add to Home Screen». ';
-  else if(isAndroid && (isChrome || isEdge)) help = 'على Android في Chrome/Edge: افتح قائمة المتصفح ثم اختر «Install app» أو «Add to Home screen». ';
-  else if(isChrome || isEdge) help = 'على الحاسوب في Chrome/Edge: افتح قائمة المتصفح ثم اختر «Install app»، أو استعمل أيقونة التثبيت في شريط العنوان إذا ظهرت.';
-  els.installHelpText.textContent = help;
-  els.installHelpOverlay.classList.remove('hidden');
 }
 
 function gameStep(ts){
@@ -811,6 +802,7 @@ function gameStep(ts){
       state.handLostMs += dt * 1000;
       if(state.running && state.handLostMs > 1200 && !state.paused){
         state.paused = true;
+        state.manualPause = false;
         els.pauseOverlay.classList.remove('hidden');
       }
     }else{
@@ -981,17 +973,28 @@ els.toggleBoardBtn.addEventListener('click', () => {
   settings.boardMode = !settings.boardMode;
   saveSettings(); applyVisualSettings(); resize();
 });
+els.pauseBtn.addEventListener('click', () => {
+  if(!state.running || state.over) return;
+  state.paused = !state.paused;
+  state.manualPause = state.paused;
+  if(state.paused){
+    els.pauseOverlay.classList.remove('hidden');
+    showFeedback('⏸️ تم إيقاف اللعب', 'gold');
+  }else{
+    els.pauseOverlay.classList.add('hidden');
+    showFeedback('▶️ تم استئناف اللعب', 'gold');
+  }
+  updateHud();
+});
 els.installBtn.addEventListener('click', triggerInstall);
-els.installTryAgainBtn.addEventListener('click', triggerInstall);
-els.installHelpCloseBtn.addEventListener('click', ()=> els.installHelpOverlay.classList.add('hidden'));
 els.calibrateBtn.addEventListener('click', startCalibration);
 els.startBtn.addEventListener('click', startGame);
 els.resumeBtn.addEventListener('click', () => {
-  state.paused = false; els.pauseOverlay.classList.add('hidden');
+  state.paused = false; state.manualPause = false; els.pauseOverlay.classList.add('hidden'); updateHud();
 });
 els.switchToPointerBtn.addEventListener('click', () => {
   settings.useCamera = false; saveSettings(); syncSettingsToUI();
-  state.paused = false; els.pauseOverlay.classList.add('hidden');
+  state.paused = false; state.manualPause = false; els.pauseOverlay.classList.add('hidden'); updateHud();
   showFeedback('تم تفعيل التحكم باللمس/الفأرة', 'gold');
 });
 els.restartBtn.addEventListener('click', () => {
@@ -1052,20 +1055,7 @@ async function boot(){
   resize();
   registerPWA();
   updateHud();
-  try{
-    await loadMediaPipe();
-    await initCamera();
-    els.installHint.textContent = window.MEDIA_PIPE_CONFIG.loadedFrom === 'local'
-      ? 'تم تحميل MediaPipe محلياً من المستودع.'
-      : 'تم تحميل MediaPipe من CDN لأن الملفات المحلية غير موجودة بعد.';
-  }catch(err){
-    console.error(err);
-    settings.useCamera = false;
-    saveSettings();
-    syncSettingsToUI();
-    els.camStatus.textContent = '📷 تعذر تحميل ملفات تتبع اليد';
-    els.installHint.textContent = 'يمكن اللعب باللمس/الفأرة حالياً. لإتاحة التتبع أوفلاين ضع ملفات MediaPipe المحلية داخل vendor/mediapipe/.';
-  }
+  await initCamera();
   requestAnimationFrame(gameStep);
 }
 boot();
