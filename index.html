@@ -141,7 +141,8 @@ select{
       <button class="toolbtn ghost" id="toggleCameraBtn">إخفاء الكاميرا</button>
       <button class="toolbtn ghost" id="toggleTeacherBtn">وضع المعلم</button>
       <button class="toolbtn ghost" id="toggleBoardBtn">وضع السبورة</button>
-      <button class="toolbtn success" id="installBtn">تثبيت التطبيق</button>
+      <button class="toolbtn ghost" id="toggleInputBtn">التحكم: كاميرا</button>
+      <button class="toolbtn success hidden" id="installBtn">تثبيت التطبيق</button>
     </div>
 
     <div class="feedback" id="feedback"></div>
@@ -175,6 +176,10 @@ select{
             <div class="actions">
               <button class="btn" id="calibrateBtn">📐 معايرة اليد</button>
               <button class="btn success" id="startBtn">▶ ابدأ اللعبة</button>
+            </div>
+            <div class="panel" style="margin-top:12px">
+              <p id="startHighScore">أفضل نتيجة محفوظة: 0</p>
+              <p id="startWordsInfo">عدد كلمات هذا المستوى: 0</p>
             </div>
             <div class="installhint" id="installHint">
               للتثبيت على الهاتف أو الحاسوب يجب تشغيل اللعبة من رابط HTTPS مثل GitHub Pages، وليس من فتح الملف مباشرة.
@@ -291,9 +296,8 @@ select{
   </div>
 </div>
 
-<script src="./vendor/mediapipe/camera_utils/camera_utils.js"></script>
-<script src="./vendor/mediapipe/hands/hands.js"></script>
 <script>
+
 const VERSION = '1.0.0';
 const APP_KEY = 'arabicWordsGame.v1';
 const SETTINGS_KEY = APP_KEY + '.settings';
@@ -368,12 +372,12 @@ const els = {};
  'calibrateBtn','startBtn','resumeBtn','switchToPointerBtn','restartBtn','closeSummaryBtn',
  'btnStart','modeSelect','levelSelect','useCameraCheck','soundCheck','cameraVisibleCheck','boardModeCheck',
  'teacherMode','teacherLevel','teacherUseCamera','teacherCameraVisible','teacherBoardMode','teacherSound',
- 'teacherSaveBtn','teacherResetStatsBtn','teacherCloseBtn'
+ 'teacherSaveBtn','teacherResetStatsBtn','teacherCloseBtn','toggleInputBtn'
 ].forEach(id => els[id] = document.getElementById(id));
 
 const ctx = els.gameCanvas.getContext('2d');
 let cw = 0, ch = 0;
-let mpHands = null, mpCamera = null;
+let mpHands = null, mpCamera = null, mediaPipeReady = false, cameraActive = false;
 let deferredPrompt = null;
 let audioCtx = null;
 let lastTs = performance.now();
@@ -402,6 +406,16 @@ function syncSettingsToUI(){
 
   applyVisualSettings();
 }
+function setInputMode(mode, announce=false){
+  const nextMode = mode === 'camera' ? 'camera' : 'pointer';
+  state.inputMode = nextMode;
+  settings.useCamera = nextMode === 'camera';
+  saveSettings();
+  applyVisualSettings();
+  if(announce){
+    showFeedback(nextMode === 'camera' ? 'تم تفعيل التحكم بالكاميرا' : 'تم تفعيل التحكم باللمس/الفأرة', 'gold');
+  }
+}
 function applyVisualSettings(){
   els.video.style.opacity = settings.showCamera ? '0.18' : '0';
   document.body.classList.toggle('board-mode', settings.boardMode);
@@ -410,6 +424,7 @@ function applyVisualSettings(){
   els.modeBox.textContent = 'النمط: ' + (settings.mode === 'training' ? 'تدريب' : 'تحدي');
   els.levelBox.textContent = 'المستوى: ' + ({easy:'سهل',medium:'متوسط',hard:'صعب'})[settings.level];
   els.toggleCameraBtn.textContent = settings.showCamera ? 'إخفاء الكاميرا' : 'إظهار الكاميرا';
+  if(els.toggleInputBtn) els.toggleInputBtn.textContent = settings.useCamera ? 'التحكم: كاميرا' : 'التحكم: لمس/فأرة';
 }
 function resize(){
   const rect = els.gameCanvas.getBoundingClientRect();
@@ -581,51 +596,121 @@ class Kalman1D{
 }
 const kalX = new Kalman1D(.5,10), kalY = new Kalman1D(.5,10);
 
-async function initCamera(){
+
+function loadScript(src){
+  return new Promise((resolve,reject)=>{
+    const s=document.createElement('script');
+    s.src=src;
+    s.async=true;
+    s.onload=()=>resolve(src);
+    s.onerror=()=>reject(new Error('Failed: '+src));
+    document.head.appendChild(s);
+  });
+}
+async function ensureMediaPipe(){
+  if(window.Hands && window.Camera){ mediaPipeReady = true; return true; }
+  const candidates = [
+    ['./vendor/mediapipe/camera_utils/camera_utils.js','./vendor/mediapipe/hands/hands.js'],
+    ['https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js','https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js']
+  ];
+  for(const pair of candidates){
+    try{
+      await loadScript(pair[0]);
+      await loadScript(pair[1]);
+      if(window.Hands && window.Camera){ mediaPipeReady = true; return true; }
+    }catch(err){
+      console.warn(err);
+    }
+  }
+  mediaPipeReady = !!(window.Hands && window.Camera);
+  return mediaPipeReady;
+}
+
+function stopCamera(){
+  try{ if(mpCamera && typeof mpCamera.stop === 'function') mpCamera.stop(); }catch{}
+  mpCamera = null;
+  try{ if(mpHands && typeof mpHands.close === 'function') mpHands.close(); }catch{}
+  mpHands = null;
+  const stream = els.video.srcObject;
+  if(stream && stream.getTracks){
+    stream.getTracks().forEach(t => t.stop());
+  }
+  els.video.srcObject = null;
+  cameraActive = false;
+  state.hasTracking = false;
+}
+
+async function initCamera(force = false){
   if(!navigator.mediaDevices?.getUserMedia){
-    settings.useCamera = false; saveSettings(); applyVisualSettings();
+    setInputMode('pointer');
     els.camStatus.textContent = '📷 الكاميرا: غير مدعومة';
-    els.installHint.textContent = 'يمكنك اللعب باللمس أو الفأرة على هذا الجهاز.';
-    return;
+    els.handStatus.textContent = '🖐 التتبع: غير متاح';
+    return false;
+  }
+  if(location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1'){
+    els.camStatus.textContent = '📷 الكاميرا: افتح اللعبة عبر HTTPS';
+  }
+  if(cameraActive && !force) return true;
+  stopCamera();
+
+  let stream = null;
+  try{
+    stream = await navigator.mediaDevices.getUserMedia({
+      video:{ facingMode:{ideal:'user'}, width:{ideal:640}, height:{ideal:480} },
+      audio:false
+    });
+    els.video.srcObject = stream;
+    await els.video.play().catch(()=>{});
+    cameraActive = true;
+    els.camStatus.textContent = '📷 الكاميرا: تعمل';
+  }catch(err){
+    console.warn('getUserMedia failed', err);
+    setInputMode('pointer');
+    els.camStatus.textContent = '📷 الكاميرا: مرفوضة أو غير متاحة';
+    els.handStatus.textContent = '🖐 التتبع: استعمل اللمس/الفأرة';
+    els.installHint.textContent = 'اسمح بالكاميرا من المتصفح أو استعمل اللمس/الفأرة.';
+    return false;
   }
 
-  if(typeof window.Hands !== 'function' || typeof window.Camera !== 'function'){
-    settings.useCamera = false; saveSettings(); applyVisualSettings();
-    els.camStatus.textContent = '📷 الكاميرا: مكتبات التتبع غير محمّلة';
-    els.handStatus.textContent = '🖐 التتبع: استُبدل باللمس/الفأرة';
-    els.installHint.textContent = 'اللعبة تعمل الآن باللمس أو الفأرة. أضف ملفات MediaPipe محلياً داخل المستودع لتفعيل التتبع دون إنترنت.';
-    return;
+  els.handStatus.textContent = '🖐 التتبع: جارٍ تحميل المكتبة...';
+  const ok = await ensureMediaPipe();
+  if(!ok){
+    setInputMode('pointer');
+    els.handStatus.textContent = '🖐 التتبع: تعذر تحميل MediaPipe';
+    els.installHint.textContent = 'التطبيق يعمل الآن باللمس/الفأرة. لإرجاع تتبع اليد أوفلاين ضع ملفات MediaPipe المحلية داخل مجلد vendor/mediapipe.';
+    return false;
   }
 
   try{
-    const stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:'user', width:{ideal:640}, height:{ideal:480} }, audio:false });
-    els.video.srcObject = stream;
-    els.camStatus.textContent = '📷 الكاميرا: تعمل';
+    mpHands = new window.Hands({ locateFile:file => {
+      const local = `./vendor/mediapipe/hands/${file}`;
+      return local;
+    }});
+    mpHands.setOptions({
+      maxNumHands:1,
+      modelComplexity:1,
+      minDetectionConfidence:0.72,
+      minTrackingConfidence:0.72,
+      selfieMode:true
+    });
+    mpHands.onResults(onHandResults);
+
+    mpCamera = new window.Camera(els.video, {
+      onFrame: async() => {
+        if(state.inputMode === 'camera' && mpHands && cameraActive) await mpHands.send({ image: els.video });
+      },
+      width:640, height:480
+    });
+    await mpCamera.start();
+    els.handStatus.textContent = '🖐 التتبع: جاهز';
+    return true;
   }catch(err){
-    settings.useCamera = false; saveSettings(); applyVisualSettings();
-    els.camStatus.textContent = '📷 الكاميرا: مرفوضة أو غير متاحة';
-    els.installHint.textContent = 'يمكنك اللعب باللمس أو الفأرة إذا لم تعمل الكاميرا.';
-    return;
+    console.warn('MediaPipe start failed', err);
+    setInputMode('pointer');
+    els.handStatus.textContent = '🖐 التتبع: فشل التشغيل';
+    els.installHint.textContent = 'حصل خطأ في تشغيل تتبع اليد. يمكنك متابعة اللعب باللمس/الفأرة.';
+    return false;
   }
-
-  const locateBase = (location.pathname.includes('/')) ? './vendor/mediapipe/hands/' : './vendor/mediapipe/hands/';
-  mpHands = new Hands({ locateFile:file => `${locateBase}${file}` });
-  mpHands.setOptions({
-    maxNumHands:1,
-    modelComplexity:1,
-    minDetectionConfidence:0.75,
-    minTrackingConfidence:0.75,
-    selfieMode:true
-  });
-  mpHands.onResults(onHandResults);
-
-  mpCamera = new Camera(els.video, {
-    onFrame: async() => {
-      if(settings.useCamera && mpHands) await mpHands.send({ image: els.video });
-    },
-    width:640, height:480
-  });
-  mpCamera.start();
 }
 function onHandResults(results){
   if(!settings.useCamera) return;
@@ -712,36 +797,24 @@ function registerPWA(){
   if('serviceWorker' in navigator){
     navigator.serviceWorker.register('./sw.js').catch(err => console.warn('SW register failed', err));
   }
-  els.installHint.textContent = 'للتثبيت: افتح اللعبة من GitHub Pages عبر HTTPS، ثم استعمل زر التثبيت أو قائمة المتصفح.';
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
-    els.installHint.textContent = 'التطبيق جاهز للتثبيت من هذا الزر.';
+    els.installBtn.classList.remove('hidden');
+    els.installHint.textContent = 'التطبيق جاهز للتثبيت من هذا الزر أو من زر المتصفح.';
   });
   window.addEventListener('appinstalled', () => {
     deferredPrompt = null;
+    els.installBtn.classList.add('hidden');
     els.installHint.textContent = 'تم تثبيت التطبيق بنجاح.';
   });
 }
 async function triggerInstall(){
-  if(deferredPrompt){
-    deferredPrompt.prompt();
-    const result = await deferredPrompt.userChoice;
-    deferredPrompt = null;
-    if(result?.outcome === 'accepted'){
-      els.installHint.textContent = 'تم إرسال طلب التثبيت.';
-    }
-    return;
-  }
-  const ua = navigator.userAgent || '';
-  const isIOS = /iPhone|iPad|iPod/i.test(ua);
-  const isAndroid = /Android/i.test(ua);
-  if(isIOS){
-    els.installHint.textContent = 'في iPhone/iPad: افتح مشاركة Safari ثم اختر "Add to Home Screen".';
-  }else if(isAndroid){
-    els.installHint.textContent = 'في Android: افتح قائمة المتصفح ثم اختر "Install app" أو "Add to Home screen".';
-  }else{
-    els.installHint.textContent = 'إذا لم يظهر التثبيت، افتح اللعبة من GitHub Pages عبر HTTPS ثم جرّب من قائمة المتصفح.';
+  if(!deferredPrompt) return;
+  const result = await deferredPrompt.prompt();
+  deferredPrompt = null;
+  if(result?.outcome === 'accepted'){
+    els.installBtn.classList.add('hidden');
   }
 }
 
@@ -749,7 +822,7 @@ function gameStep(ts){
   const dt = Math.min(40, ts - lastTs) / 1000;
   lastTs = ts;
 
-  if(settings.useCamera){
+  if(state.inputMode === 'camera') {
     const sinceSeen = performance.now() - (state.lastHandSeen || 0);
     if(sinceSeen > 120){
       state.hasTracking = false;
@@ -789,7 +862,7 @@ function gameStep(ts){
       const dy = state.pointerY - w.y;
       const dist = Math.hypot(dx, dy);
 
-      if(settings.useCamera || state.inputMode === 'pointer'){
+      if(state.inputMode === 'camera' || state.inputMode === 'pointer'){
         if(!state.pool.some(x => x.dragging) && state.pointerX > -100 && dist < Math.max(55, (w.w||90)*0.5 + 15)){
           w.dragging = true;
         }
@@ -907,11 +980,11 @@ function pointerMove(clientX, clientY){
   state.hasTracking = true;
 }
 window.addEventListener('pointermove', e => {
-  if(settings.useCamera) return;
+  if(state.inputMode !== 'pointer') return;
   pointerMove(e.clientX, e.clientY);
 });
 window.addEventListener('pointerdown', e => {
-  if(settings.useCamera) return;
+  if(state.inputMode !== 'pointer') return;
   pointerMove(e.clientX, e.clientY);
 });
 window.addEventListener('pointerup', () => {
@@ -930,13 +1003,24 @@ els.toggleBoardBtn.addEventListener('click', () => {
   saveSettings(); applyVisualSettings(); resize();
 });
 els.installBtn.addEventListener('click', triggerInstall);
+els.toggleInputBtn.addEventListener('click', async () => {
+  if(settings.useCamera){
+    setInputMode('pointer', true);
+    stopCamera();
+    els.camStatus.textContent = '📷 الكاميرا: متوقفة';
+    els.handStatus.textContent = '🖐 التتبع: متوقف';
+  }else{
+    setInputMode('camera', true);
+    await initCamera(true);
+  }
+});
 els.calibrateBtn.addEventListener('click', startCalibration);
 els.startBtn.addEventListener('click', startGame);
 els.resumeBtn.addEventListener('click', () => {
   state.paused = false; els.pauseOverlay.classList.add('hidden');
 });
 els.switchToPointerBtn.addEventListener('click', () => {
-  settings.useCamera = false; saveSettings(); syncSettingsToUI();
+  setInputMode('pointer', false);
   state.paused = false; els.pauseOverlay.classList.add('hidden');
   showFeedback('تم تفعيل التحكم باللمس/الفأرة', 'gold');
 });
@@ -949,6 +1033,16 @@ els.closeSummaryBtn.addEventListener('click', () => {
   els.startOverlay.classList.remove('hidden');
 });
 
+async function syncCameraWithSettings(force=false){
+  if(settings.useCamera){
+    await initCamera(force);
+  }else{
+    stopCamera();
+    els.camStatus.textContent = '📷 الكاميرا: متوقفة';
+    els.handStatus.textContent = '🖐 التتبع: استعمل اللمس/الفأرة';
+  }
+}
+
 function applyStartPanel(){
   settings.mode = els.modeSelect.value;
   settings.level = els.levelSelect.value;
@@ -957,12 +1051,13 @@ function applyStartPanel(){
   settings.showCamera = els.cameraVisibleCheck.checked;
   settings.boardMode = els.boardModeCheck.checked;
   saveSettings(); syncSettingsToUI(); resize();
+  syncCameraWithSettings(false);
 }
 ['modeSelect','levelSelect','useCameraCheck','soundCheck','cameraVisibleCheck','boardModeCheck'].forEach(id => {
   document.getElementById(id).addEventListener('change', applyStartPanel);
 });
 
-els.teacherSaveBtn.addEventListener('click', () => {
+els.teacherSaveBtn.addEventListener('click', async () => {
   settings.mode = els.teacherMode.value;
   settings.level = els.teacherLevel.value;
   settings.useCamera = els.teacherUseCamera.checked;
@@ -972,6 +1067,7 @@ els.teacherSaveBtn.addEventListener('click', () => {
   saveSettings();
   syncSettingsToUI();
   resize();
+  await syncCameraWithSettings(true);
   els.teacherOverlay.classList.add('hidden');
   showFeedback('تم حفظ إعدادات المعلم', 'gold');
 });
@@ -998,7 +1094,7 @@ async function boot(){
   resize();
   registerPWA();
   updateHud();
-  await initCamera();
+  await syncCameraWithSettings(true);
   requestAnimationFrame(gameStep);
 }
 boot();
