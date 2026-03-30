@@ -1,0 +1,1523 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
+<title>لعبة الكلمات العربية</title>
+<meta name="theme-color" content="#1a1a2e" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="لعبة الكلمات" />
+<link rel="manifest" href="./manifest.webmanifest" />
+<link rel="apple-touch-icon" href="./icons/icon-192.png" />
+<style>
+:root{
+  --fel:#ff6b6b; --ism:#4ecdc4; --harf:#ffe66d;
+  --bg:#171b34; --panel:#1f2750; --panel2:#11182f; --accent:#e94560;
+  --text:#f2f5ff; --muted:#bfc7e6; --ok:#06d6a0; --bad:#ef476f; --gold:#ffd166;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;height:100%;background:var(--bg);color:var(--text);font-family:Tahoma,"Segoe UI","Noto Sans Arabic",Arial,sans-serif}
+body{overflow:hidden;touch-action:none}
+button,select,input{font:inherit}
+.hidden{display:none !important}
+.app{height:100%;display:flex;flex-direction:column}
+.topbar{
+  display:grid;grid-template-columns:1fr auto auto;gap:12px;align-items:center;
+  padding:10px 14px;background:var(--panel);border-bottom:3px solid var(--accent)
+}
+.title{font-size:1.25rem;font-weight:900;color:#fff}
+.status{display:flex;flex-direction:column;gap:3px;font-size:.83rem;color:var(--muted)}
+.scorepill,.combopill{
+  background:#0f3460;padding:8px 12px;border-radius:14px;font-weight:800;min-width:100px;text-align:center
+}
+.combopill{background:#4b3f15;color:#ffe8a3}
+.main{position:relative;flex:1;overflow:hidden}
+video,#gameCanvas{position:absolute;inset:0;width:100%;height:100%}
+video{object-fit:cover;transform:scaleX(-1);opacity:.18;background:#0d1224}
+#gameCanvas{z-index:2}
+.toolbar{
+  position:absolute;z-index:12;inset-inline:10px;top:10px;
+  display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-start
+}
+.toolbtn,.btn{
+  border:none;border-radius:14px;padding:10px 16px;cursor:pointer;
+  background:var(--panel);color:#fff;font-weight:800;box-shadow:0 8px 24px rgba(0,0,0,.25)
+}
+.toolbtn.secondary{background:#0f3460}
+.toolbtn.success,.btn.success{background:var(--ok);color:#111}
+.toolbtn.warn{background:#c88700;color:#111}
+.toolbtn.danger,.btn.danger{background:var(--accent)}
+.toolbtn.ghost{background:rgba(17,24,47,.75);backdrop-filter:blur(6px)}
+.overlay{
+  position:absolute;inset:0;z-index:20;background:rgba(11,16,32,.92);
+  display:flex;align-items:center;justify-content:center;padding:18px
+}
+.card{
+  width:min(960px,96vw);max-height:92vh;overflow:auto;
+  background:linear-gradient(180deg,var(--panel),var(--panel2));
+  border:1px solid rgba(255,255,255,.08);border-radius:24px;padding:22px;box-shadow:0 24px 60px rgba(0,0,0,.35)
+}
+.card h1,.card h2,.card h3{margin:0 0 12px}
+.card p{margin:6px 0;color:var(--muted);line-height:1.8}
+.grid2{display:grid;grid-template-columns:1.1fr .9fr;gap:18px}
+.badges{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
+.badge{
+  padding:10px 18px;border-radius:14px;font-weight:900;color:#111
+}
+.badge.fel{background:var(--fel)} .badge.ism{background:var(--ism)} .badge.harf{background:var(--harf)}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.panel{
+  background:rgba(255,255,255,.04);border-radius:18px;padding:14px
+}
+.simple-list{margin:0;padding:0 18px;line-height:2}
+.teacher-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.field{display:flex;flex-direction:column;gap:6px}
+label{font-weight:800}
+select,input[type="checkbox"]{accent-color:var(--accent)}
+select{
+  background:#0f1530;color:#fff;border:1px solid rgba(255,255,255,.15);
+  border-radius:12px;padding:10px 12px
+}
+.checkbox{display:flex;gap:8px;align-items:center}
+.note{font-size:.9rem;color:#c9d1ff}
+.feedback{
+  position:absolute;z-index:30;top:74px;left:50%;transform:translateX(-50%);
+  padding:12px 20px;border-radius:18px;font-weight:900;font-size:1.2rem;opacity:0;transition:.25s;
+  pointer-events:none;white-space:nowrap
+}
+.feedback.show{opacity:1}
+.feedback.ok{background:var(--ok);color:#111}
+.feedback.bad{background:var(--bad);color:#fff}
+.feedback.gold{background:var(--gold);color:#111}
+.bottomhud{
+  position:absolute;z-index:10;bottom:8px;left:10px;right:10px;
+  display:flex;justify-content:space-between;align-items:end;gap:12px;pointer-events:none
+}
+.hudbox{
+  background:rgba(15,21,48,.76);backdrop-filter:blur(6px);
+  border-radius:16px;padding:10px 14px;font-weight:800;min-width:110px
+}
+.statsgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:10px}
+.stat{background:rgba(255,255,255,.05);border-radius:16px;padding:12px;text-align:center}
+.stat .n{font-size:1.8rem;font-weight:900}
+.review-list{display:flex;flex-wrap:wrap;gap:10px}
+.review-card{background:rgba(255,255,255,.05);padding:10px 12px;border-radius:14px;border:1px solid rgba(255,255,255,.09);min-width:110px}
+.installhint{margin-top:10px;padding:10px 12px;border-radius:12px;background:#15314a;color:#d8ecff;font-size:.92rem}
+.board-mode .toolbar{top:auto;bottom:10px}
+.board-mode .topbar{padding:8px 14px}
+.board-mode .title{font-size:1.45rem}
+.board-mode .toolbtn,.board-mode .btn{font-size:1.05rem;padding:12px 16px}
+.board-mode .feedback{font-size:1.5rem}
+/* Tracking quality indicator dot */
+#trackDot{
+  display:inline-block;width:10px;height:10px;border-radius:50%;
+  background:#666;margin-inline-start:4px;vertical-align:middle;transition:background .3s;
+}
+#trackDot.ok{background:var(--ok)}
+#trackDot.warn{background:var(--gold)}
+#trackDot.bad{background:var(--bad)}
+@media (max-width:820px){
+  .topbar{grid-template-columns:1fr auto;grid-template-areas:"title score" "status combo"}
+  .title{grid-area:title}.scorepill{grid-area:score}.status{grid-area:status}.combopill{grid-area:combo}
+  .grid2,.teacher-grid,.statsgrid{grid-template-columns:1fr}
+  .feedback{top:120px;max-width:92vw;white-space:normal;text-align:center}
+}
+</style>
+</head>
+<body>
+<div class="app" id="appRoot">
+  <div class="topbar">
+    <div class="title">🎯 لعبة الكلمات العربية</div>
+    <div class="status">
+      <div id="camStatus">📷 الكاميرا: جارٍ التهيئة...</div>
+      <div id="handStatus">🖐 التتبع: لم يبدأ بعد <span id="trackDot"></span></div>
+      <div id="controlStatus">🎮 التحكم: كاميرا</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <div class="combopill">كومبو: <span id="comboDisplay">0</span></div>
+      <div class="scorepill">النقاط: <span id="scoreDisplay">0</span></div>
+    </div>
+  </div>
+
+  <div class="main">
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="gameCanvas"></canvas>
+
+    <div class="toolbar">
+      <button class="toolbtn ghost" id="toggleCameraBtn">إخفاء الكاميرا</button>
+      <button class="toolbtn ghost" id="toggleTeacherBtn">وضع المعلم</button>
+      <button class="toolbtn ghost" id="toggleBoardBtn">وضع السبورة</button>
+      <button class="toolbtn ghost" id="toggleInputBtn">التحكم: كاميرا</button>
+      <button class="toolbtn success hidden" id="installBtn">تثبيت التطبيق</button>
+    </div>
+
+    <div class="feedback" id="feedback"></div>
+
+    <div class="bottomhud">
+      <div class="hudbox" id="livesBox">❤️ 5</div>
+      <div class="hudbox" id="modeBox">النمط: تدريب</div>
+      <div class="hudbox" id="levelBox">المستوى: سهل</div>
+    </div>
+
+    <div class="overlay" id="startOverlay">
+      <div class="card">
+        <div class="grid2">
+          <div>
+            <h1>🌟 لعبة تصنيف الكلمات</h1>
+            <p>المتعلم يلتقط الكلمة بإصبعه ويضعها في الصندوق الصحيح: <strong>فعل</strong> أو <strong>اسم</strong> أو <strong>حرف</strong>.</p>
+            <div class="badges">
+              <div class="badge fel">فعل</div>
+              <div class="badge ism">اسم</div>
+              <div class="badge harf">حرف</div>
+            </div>
+            <div class="panel" style="margin-top:14px">
+              <h3>طريقة اللعب</h3>
+              <ol class="simple-list">
+                <li>اضغط <strong>معايرة اليد</strong> مرة واحدة قبل البدء.</li>
+                <li>حرّك السبابة داخل مجال مريح أمام الكاميرا.</li>
+                <li>المس الكلمة لتلتصق بالمؤشر ثم وجّهها إلى الصندوق الصحيح.</li>
+                <li>إذا لم تعمل الكاميرا يمكنك اللعب باللمس أو الفأرة.</li>
+              </ol>
+            </div>
+            <div class="actions">
+              <button class="btn" id="calibrateBtn">📐 معايرة اليد</button>
+              <button class="btn success" id="startBtn">▶ ابدأ اللعبة</button>
+            </div>
+            <div class="panel" style="margin-top:12px">
+              <p id="startHighScore">أفضل نتيجة محفوظة: 0</p>
+              <p id="startWordsInfo">عدد كلمات هذا المستوى: 0</p>
+            </div>
+            <div class="installhint" id="installHint">
+              للتثبيت على الهاتف أو الحاسوب يجب تشغيل اللعبة من رابط HTTPS مثل GitHub Pages، وليس من فتح الملف مباشرة.
+            </div>
+          </div>
+
+          <div class="panel">
+            <h3>إعدادات سريعة</h3>
+            <div class="teacher-grid">
+              <div class="field">
+                <label for="modeSelect">النمط</label>
+                <select id="modeSelect">
+                  <option value="training">تدريب</option>
+                  <option value="challenge">تحدي</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="levelSelect">المستوى</label>
+                <select id="levelSelect">
+                  <option value="easy">سهل</option>
+                  <option value="medium">متوسط</option>
+                  <option value="hard">صعب</option>
+                </select>
+              </div>
+              <label class="checkbox"><input type="checkbox" id="useCameraCheck" checked> استخدام الكاميرا</label>
+              <label class="checkbox"><input type="checkbox" id="soundCheck" checked> تشغيل الصوت</label>
+              <label class="checkbox"><input type="checkbox" id="cameraVisibleCheck" checked> إظهار الكاميرا</label>
+              <label class="checkbox"><input type="checkbox" id="boardModeCheck"> وضع السبورة</label>
+            </div>
+            <p class="note">تُحفَظ هذه الإعدادات محلياً تلقائياً على الجهاز.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay hidden" id="calibOverlay">
+      <div class="card" style="max-width:700px;text-align:center">
+        <h2>📐 معايرة مجال الحركة</h2>
+        <p>حرّك السبابة نحو اليمين واليسار والأعلى والأسفل حتى يمتلئ الشريط.</p>
+        <div style="height:22px;background:#2a3158;border-radius:999px;overflow:hidden;margin-top:16px">
+          <div id="calibBar" style="height:100%;width:0%;background:#1e90ff;transition:width .1s"></div>
+        </div>
+        <p id="calibMsg" style="margin-top:12px;font-size:.9rem;color:var(--muted)">في انتظار رؤية اليد...</p>
+      </div>
+    </div>
+
+    <div class="overlay hidden" id="pauseOverlay">
+      <div class="card" style="max-width:640px;text-align:center">
+        <h2>⏸ توقف مؤقت</h2>
+        <p>فُقد تتبع اليد. أظهر يدك أمام الكاميرا أو استعمل اللمس/الفأرة.</p>
+        <div class="actions" style="justify-content:center">
+          <button class="btn success" id="resumeBtn">استئناف</button>
+          <button class="btn" id="switchToPointerBtn">التحكم باللمس/الفأرة</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay hidden" id="teacherOverlay">
+      <div class="card">
+        <h2>🧑‍🏫 وضع المعلم</h2>
+        <div class="teacher-grid">
+          <div class="field">
+            <label for="teacherMode">النمط</label>
+            <select id="teacherMode">
+              <option value="training">تدريب</option>
+              <option value="challenge">تحدي</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="teacherLevel">المستوى</label>
+            <select id="teacherLevel">
+              <option value="easy">سهل</option>
+              <option value="medium">متوسط</option>
+              <option value="hard">صعب</option>
+            </select>
+          </div>
+          <label class="checkbox"><input type="checkbox" id="teacherUseCamera"> استخدام الكاميرا</label>
+          <label class="checkbox"><input type="checkbox" id="teacherCameraVisible"> إظهار الكاميرا</label>
+          <label class="checkbox"><input type="checkbox" id="teacherBoardMode"> وضع السبورة</label>
+          <label class="checkbox"><input type="checkbox" id="teacherSound"> تشغيل الصوت</label>
+        </div>
+        <div class="actions">
+          <button class="btn success" id="teacherSaveBtn">حفظ الإعدادات</button>
+          <button class="btn danger" id="teacherResetStatsBtn">تصفير النتائج المحفوظة</button>
+          <button class="btn" id="teacherCloseBtn">إغلاق</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="overlay hidden" id="gameOverOverlay">
+      <div class="card">
+        <h2>🎉 نهاية الجولة</h2>
+        <h3 id="summaryTitle">أحسنت</h3>
+        <div class="statsgrid">
+          <div class="stat"><div class="n" id="sumScore">0</div><div>النقاط</div></div>
+          <div class="stat"><div class="n" id="sumCorrect">0</div><div>صحيح</div></div>
+          <div class="stat"><div class="n" id="sumWrong">0</div><div>خطأ</div></div>
+          <div class="stat"><div class="n" id="sumBestCombo">0</div><div>أفضل كومبو</div></div>
+        </div>
+        <div class="panel" style="margin-top:12px">
+          <h3>تحليل سريع</h3>
+          <p id="analysisText">-</p>
+        </div>
+        <div class="panel" style="margin-top:12px">
+          <h3>مراجعة الأخطاء</h3>
+          <div class="review-list" id="reviewList"></div>
+        </div>
+        <div class="actions">
+          <button class="btn success" id="restartBtn">🔄 جولة جديدة</button>
+          <button class="btn" id="closeSummaryBtn">إغلاق</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ─────────────────────────────────────────────
+// Constants & data
+// ─────────────────────────────────────────────
+const VERSION   = '1.1.0';
+const APP_KEY   = 'arabicWordsGame.v1';
+const SETTINGS_KEY = APP_KEY + '.settings';
+const RESULTS_KEY  = APP_KEY + '.results';
+const CALIB_KEY    = APP_KEY + '.calib';
+
+const WORD_BANKS = {
+  easy: {
+    'فعل': ['كَتَبَ','قَرَأَ','أَكَلَ','لَعِبَ','جَلَسَ','نَامَ'],
+    'اسم': ['قَلَمٌ','كِتَابٌ','بَيْتٌ','شَمْسٌ','بِنْتٌ','وَلَدٌ'],
+    'حرف': ['فِي','مِنْ','إِلَى','عَلَى','وَ','بِ']
+  },
+  medium: {
+    'فعل': ['رَسَمَ','فَتَحَ','سَمِعَ','رَكَضَ','ذَهَبَ','شَرِبَ'],
+    'اسم': ['مَدْرَسَةٌ','مُعَلِّمٌ','سَيَّارَةٌ','طَائِرٌ','نَهَرٌ','تُفَّاحٌ'],
+    'حرف': ['عَنْ','هَلْ','لَا','ثُمَّ','لِ','فَ']
+  },
+  hard: {
+    'فعل': ['يَكْتُبُ','يَقْرَأُ','يَلْعَبُ','يَرْسُمُ','اِسْتَمَعَ','اِنْطَلَقَ'],
+    'اسم': ['مَكْتَبَةٌ','حَقِيبَةٌ','فَصْلٌ','مِفْتَاحٌ','مِسْطَرَةٌ','حَدِيقَةٌ'],
+    'حرف': ['لَكِنْ','أَوْ','بَلْ','مَعَ','تَحْتَ','فَوْقَ']
+  }
+};
+
+const ZONES = [
+  { key:'فعل',  label:'فعل',  color:'#ff6b6b', text:'#111' },
+  { key:'اسم',  label:'اسم',  color:'#4ecdc4', text:'#111' },
+  { key:'حرف', label:'حرف', color:'#ffe66d', text:'#111' }
+];
+
+const defaults = {
+  mode:'training', level:'easy',
+  useCamera:true, showCamera:true,
+  boardMode:false, sound:true
+};
+
+// ─────────────────────────────────────────────
+// Persistence helpers
+// ─────────────────────────────────────────────
+function loadJSON(key, fallback){
+  try { return Object.assign({}, fallback, JSON.parse(localStorage.getItem(key) || '{}')); }
+  catch { return structuredClone(fallback); }
+}
+function saveJSON(key, data){ localStorage.setItem(key, JSON.stringify(data)); }
+
+let settings         = loadJSON(SETTINGS_KEY, defaults);
+let persistedResults = loadJSON(RESULTS_KEY, { highScore:0, sessions:0, totals:{ correct:0, wrong:0 } });
+
+function saveSettings(){ saveJSON(SETTINGS_KEY, settings); }
+function saveResults(){  saveJSON(RESULTS_KEY, persistedResults); }
+
+// ─────────────────────────────────────────────
+// State
+// ─────────────────────────────────────────────
+const MAX_WORDS     = 12;
+const MAX_PARTICLES = 120;
+
+const state = {
+  score:0, lives:5, combo:0, bestCombo:0,
+  running:false, paused:false, over:false,
+  correct:0, wrong:0, missed:[],
+  lastSpawn:0,
+  // pointer
+  pointerX:-999, pointerY:-999,
+  inputMode:'camera',
+  // tracking quality
+  hasTracking:false,
+  lastHandSeen:0,       // ms timestamp
+  handLostMs:0,
+  // smoothed raw from MediaPipe (normalised 0-1)
+  rawNormX:0.5, rawNormY:0.5,
+  // calibration
+  calibrated:false,
+  calib:{ minX:.1, maxX:.9, minY:.1, maxY:.9 },
+  // object pools
+  pool:[], particles:[]
+};
+
+for(let i=0;i<MAX_WORDS;i++){
+  state.pool.push({
+    active:false, id:i, word:'', type:'',
+    x:0, y:0, w:0, h:0, vy:0,
+    dragging:false, dying:false, opacity:1
+  });
+}
+for(let i=0;i<MAX_PARTICLES;i++){
+  state.particles.push({ active:false,x:0,y:0,vx:0,vy:0,life:0,maxLife:0,r:0,color:'#fff' });
+}
+
+// ─────────────────────────────────────────────
+// DOM refs
+// ─────────────────────────────────────────────
+const els = {};
+[
+  'video','gameCanvas','scoreDisplay','comboDisplay',
+  'camStatus','handStatus','controlStatus','trackDot','feedback',
+  'startOverlay','calibOverlay','pauseOverlay','teacherOverlay','gameOverOverlay','reviewList',
+  'modeBox','levelBox','livesBox','summaryTitle','sumScore','sumCorrect','sumWrong','sumBestCombo','analysisText',
+  'calibBar','calibMsg','installBtn','installHint',
+  'toggleCameraBtn','toggleTeacherBtn','toggleBoardBtn','toggleInputBtn',
+  'calibrateBtn','startBtn','resumeBtn','switchToPointerBtn','restartBtn','closeSummaryBtn',
+  'modeSelect','levelSelect','useCameraCheck','soundCheck','cameraVisibleCheck','boardModeCheck',
+  'teacherMode','teacherLevel','teacherUseCamera','teacherCameraVisible','teacherBoardMode','teacherSound',
+  'teacherSaveBtn','teacherResetStatsBtn','teacherCloseBtn'
+].forEach(id => { els[id] = document.getElementById(id); });
+
+const ctx = els.gameCanvas.getContext('2d');
+let cw = 0, ch = 0;
+
+// ─────────────────────────────────────────────
+// Canvas resize
+// ─────────────────────────────────────────────
+function resize(){
+  const rect = els.gameCanvas.getBoundingClientRect();
+  const dpr  = Math.min(window.devicePixelRatio || 1, 2);
+  els.gameCanvas.width  = Math.round(rect.width  * dpr);
+  els.gameCanvas.height = Math.round(rect.height * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  cw = rect.width;
+  ch = rect.height;
+}
+window.addEventListener('resize', resize);
+
+// ─────────────────────────────────────────────
+// TRACKING MODULE — improved
+// ─────────────────────────────────────────────
+
+/**
+ * 1D Kalman filter — tuned for hand tracking.
+ *   Q  = process noise  (higher → trusts measurement more, faster but jittier)
+ *   R  = measurement noise (higher → trusts model more, smoother but laggy)
+ * Values tuned for ~30fps webcam + low-quality laptop cameras.
+ */
+class Kalman1D {
+  constructor(Q = 0.3, R = 18) {
+    this.Q = Q; this.R = R;
+    this.x = 0; this.P = 1; this.ready = false;
+  }
+  update(z) {
+    if (!this.ready) { this.x = z; this.ready = true; return z; }
+    this.P += this.Q;
+    const K = this.P / (this.P + this.R);
+    this.x += K * (z - this.x);
+    this.P *= (1 - K);
+    return this.x;
+  }
+  reset() { this.ready = false; }
+}
+
+// Separate filters for x and y; these operate on pixel coordinates
+const kalX = new Kalman1D(0.3, 18);
+const kalY = new Kalman1D(0.3, 18);
+
+// Additional exponential moving average applied *after* Kalman for extra softness
+const EMA_ALPHA = 0.35; // 0 = perfectly smooth (no response), 1 = raw Kalman
+let emaX = -1, emaY = -1;
+
+/**
+ * Dead-zone: ignore movements smaller than DEAD_PX pixels (canvas coords).
+ * Eliminates micro-jitter on steady hands.
+ */
+const DEAD_PX = 4;
+
+/**
+ * Hold duration (ms): keep the last valid pointer position after hand disappears
+ * before marking tracking as lost. Prevents single-frame flicker.
+ */
+const HOLD_DURATION_MS = 300;
+
+/**
+ * Pause-trigger threshold (ms): pause game only after this many ms of lost tracking.
+ * Longer than original (1200ms) to be less intrusive in the classroom.
+ */
+const PAUSE_TRIGGER_MS = 2000;
+
+// Last smoothed pixel coordinates from camera
+let lastPx = -1, lastPy = -1;
+
+/**
+ * Apply smoothing pipeline:
+ *   raw normalized → calibrate → pixel → Kalman → EMA → dead-zone
+ * Returns {x, y} in canvas pixels, or null if no valid input.
+ */
+function smoothFingerPosition(normX, normY) {
+  // 1. Calibration mapping
+  let cx = normX, cy = normY;
+  if (state.calibrated) {
+    const { minX, maxX, minY, maxY } = state.calib;
+    cx = (normX - minX) / Math.max(0.001, maxX - minX);
+    cy = (normY - minY) / Math.max(0.001, maxY - minY);
+  }
+  cx = clamp(cx, 0, 1);
+  cy = clamp(cy, 0, 1);
+
+  // 2. Map to canvas pixels
+  const px = cx * cw;
+  const py = cy * ch;
+
+  // 3. Kalman filter
+  const kx = kalX.update(px);
+  const ky = kalY.update(py);
+
+  // 4. EMA (exponential moving average) — runs *after* Kalman
+  if (emaX < 0) { emaX = kx; emaY = ky; }
+  emaX = EMA_ALPHA * kx + (1 - EMA_ALPHA) * emaX;
+  emaY = EMA_ALPHA * ky + (1 - EMA_ALPHA) * emaY;
+
+  // 5. Dead-zone — suppress tiny movements
+  if (lastPx >= 0) {
+    const dx = emaX - lastPx;
+    const dy = emaY - lastPy;
+    if (Math.hypot(dx, dy) < DEAD_PX) {
+      return { x: lastPx, y: lastPy };
+    }
+  }
+
+  lastPx = emaX;
+  lastPy = emaY;
+  return { x: emaX, y: emaY };
+}
+
+/**
+ * Reset all smoothing state (call on hand re-entry so EMA doesn't "slide in").
+ */
+function resetSmoothingState() {
+  kalX.reset(); kalY.reset();
+  emaX = -1; emaY = -1;
+  lastPx = -1; lastPy = -1;
+}
+
+// ─────────────────────────────────────────────
+// MediaPipe & camera
+// ─────────────────────────────────────────────
+let mpHands       = null;
+let mpCamera      = null;
+let mediaPipeReady = false;
+let cameraActive  = false;
+let cameraRetryTimer = null;
+let prevHandPresent = false;   // for edge detection (hand appear/disappear)
+
+/**
+ * Process one MediaPipe results object.
+ * This is the single canonical hand-results handler — no patching needed.
+ */
+function onHandResults(results) {
+  if (!settings.useCamera) return;
+
+  const landmarks = results.multiHandLandmarks?.[0];
+
+  if (!landmarks) {
+    // ── Hand not visible ──────────────────────────────────────────
+    if (prevHandPresent) {
+      // Transition: hand just disappeared
+      prevHandPresent = false;
+      // Don't reset lastHandSeen yet — we honour HOLD_DURATION_MS in gameStep
+    }
+    return;
+  }
+
+  // ── Hand visible ─────────────────────────────────────────────────
+  const tip = landmarks[8]; // index finger tip
+  // Store latest raw normalised values (for calibration sampling)
+  state.rawNormX = tip.x;
+  state.rawNormY = tip.y;
+
+  if (!prevHandPresent) {
+    // Transition: hand just appeared — reset smoothing to avoid jump-in
+    resetSmoothingState();
+    prevHandPresent = true;
+  }
+
+  const smooth = smoothFingerPosition(tip.x, tip.y);
+  state.pointerX = smooth.x;
+  state.pointerY = smooth.y;
+  state.hasTracking = true;
+  state.lastHandSeen = performance.now();
+
+  setHandStatus('detected');
+
+  if (state.paused) {
+    state.paused = false;
+    els.pauseOverlay.classList.add('hidden');
+  }
+}
+
+/**
+ * setHandStatus updates the Arabic status label + indicator dot.
+ * Values: 'initialising' | 'ready' | 'detected' | 'lost' | 'unavailable' | 'fallback'
+ */
+function setHandStatus(kind) {
+  const dot = els.trackDot;
+  const STATUS = {
+    initialising: { text: '🖐 التتبع: جارٍ التحميل...',      dot: '' },
+    ready:        { text: '🖐 التتبع: جاهز، انتظر اليد',      dot: 'warn' },
+    detected:     { text: '🖐 التتبع: ✅ يد مكتشفة',          dot: 'ok' },
+    lost:         { text: '🖐 التتبع: ⚠️ فُقدت اليد',         dot: 'warn' },
+    unavailable:  { text: '🖐 التتبع: غير متاح',              dot: 'bad' },
+    fallback:     { text: '🖐 التتبع: وضع اللمس/الفأرة',      dot: '' }
+  };
+  const s = STATUS[kind] || STATUS.unavailable;
+  // Strip dot from text node (keep the dot span separate)
+  const textParts = s.text.split('');
+  els.handStatus.textContent = s.text + '\u00A0';
+  els.handStatus.appendChild(dot);
+  dot.className = s.dot ? `ok ${s.dot}` : '';
+  // Patch: simpler direct assignment
+  els.handStatus.textContent = '';
+  const span = document.createTextNode(s.text + ' ');
+  els.handStatus.appendChild(span);
+  els.handStatus.appendChild(dot);
+  dot.className = s.dot ? s.dot : '';
+}
+
+function setCamStatus(text) {
+  els.camStatus.textContent = '📷 الكاميرا: ' + text;
+}
+
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    // Avoid double-loading
+    if (document.querySelector(`script[src="${src}"]`)) { resolve(src); return; }
+    const s = document.createElement('script');
+    s.src = src; s.async = true;
+    s.onload  = () => resolve(src);
+    s.onerror = () => reject(new Error('Failed to load: ' + src));
+    document.head.appendChild(s);
+  });
+}
+
+/**
+ * Load MediaPipe from CDN with fallback to local vendor folder.
+ * Order: local vendor first (offline PWA), then jsDelivr CDN, then unpkg.
+ */
+async function ensureMediaPipe() {
+  if (window.Hands && window.Camera) { mediaPipeReady = true; return true; }
+
+  const candidates = [
+    // Local vendor bundle (for offline / intranet use)
+    [
+      './vendor/mediapipe/camera_utils/camera_utils.js',
+      './vendor/mediapipe/hands/hands.js'
+    ],
+    // jsDelivr CDN
+    [
+      'https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3/camera_utils.js',
+      'https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/hands.js'
+    ],
+    // unpkg fallback
+    [
+      'https://unpkg.com/@mediapipe/camera_utils/camera_utils.js',
+      'https://unpkg.com/@mediapipe/hands/hands.js'
+    ]
+  ];
+
+  for (const [cameraUrl, handsUrl] of candidates) {
+    try {
+      await loadScript(cameraUrl);
+      await loadScript(handsUrl);
+      if (window.Hands && window.Camera) {
+        mediaPipeReady = true;
+        return true;
+      }
+    } catch (err) {
+      console.warn('[MediaPipe] Load failed for candidate:', cameraUrl, err.message);
+    }
+  }
+
+  mediaPipeReady = false;
+  return false;
+}
+
+/**
+ * Stop everything camera-related cleanly.
+ */
+function stopCamera() {
+  clearTimeout(cameraRetryTimer);
+  try { if (mpCamera?.stop) mpCamera.stop(); } catch {}
+  mpCamera = null;
+  try { if (mpHands?.close) mpHands.close(); } catch {}
+  mpHands = null;
+  const stream = els.video.srcObject;
+  if (stream?.getTracks) stream.getTracks().forEach(t => t.stop());
+  els.video.srcObject = null;
+  cameraActive   = false;
+  state.hasTracking = false;
+  prevHandPresent   = false;
+}
+
+/**
+ * Attempt getUserMedia with progressively relaxed constraints.
+ * Low-quality laptop cameras often reject ideal constraints.
+ */
+async function getUserMediaWithFallback() {
+  const constraintSets = [
+    // Best quality
+    {
+      video: {
+        facingMode: { ideal: 'user' },
+        width:      { ideal: 640, min: 320 },
+        height:     { ideal: 480, min: 240 },
+        frameRate:  { ideal: 30, min: 15 }
+      },
+      audio: false
+    },
+    // Mid fallback — drop frame-rate constraint
+    {
+      video: {
+        facingMode: { ideal: 'user' },
+        width:      { ideal: 640 },
+        height:     { ideal: 480 }
+      },
+      audio: false
+    },
+    // Minimal — just any video
+    { video: true, audio: false }
+  ];
+
+  let lastErr;
+  for (const constraints of constraintSets) {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      return stream;
+    } catch (err) {
+      lastErr = err;
+      console.warn('[Camera] getUserMedia failed with constraints, trying next…', err.name);
+    }
+  }
+  throw lastErr;
+}
+
+/**
+ * Full camera + MediaPipe initialisation.
+ * @param {boolean} force  Re-initialise even if already active.
+ */
+async function initCamera(force = false) {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    setInputMode('pointer');
+    setCamStatus('المتصفح لا يدعم الكاميرا');
+    setHandStatus('unavailable');
+    return false;
+  }
+  if (location.protocol !== 'https:' &&
+      location.hostname !== 'localhost' &&
+      location.hostname !== '127.0.0.1') {
+    setCamStatus('افتح اللعبة عبر HTTPS لتفعيل الكاميرا');
+  }
+  if (cameraActive && !force) return true;
+  stopCamera();
+
+  // ── Step 1: get webcam stream ──────────────────────────────────
+  let stream;
+  try {
+    setCamStatus('جارٍ الاتصال...');
+    stream = await getUserMediaWithFallback();
+  } catch (err) {
+    console.warn('[Camera] getUserMedia rejected:', err.name, err.message);
+    setInputMode('pointer');
+    setCamStatus('مرفوضة أو غير متاحة');
+    setHandStatus('fallback');
+    els.installHint.textContent = 'اسمح بالكاميرا من المتصفح أو استعمل اللمس/الفأرة.';
+    return false;
+  }
+
+  els.video.srcObject = stream;
+  // Wait for metadata so the video element reports correct dimensions
+  await new Promise(resolve => {
+    if (els.video.readyState >= 1) { resolve(); return; }
+    els.video.addEventListener('loadedmetadata', resolve, { once: true });
+  });
+  try { await els.video.play(); } catch {}
+  cameraActive = true;
+  setCamStatus('✅ تعمل');
+
+  // ── Step 2: load MediaPipe ─────────────────────────────────────
+  setHandStatus('initialising');
+  const ok = await ensureMediaPipe();
+  if (!ok) {
+    setInputMode('pointer');
+    setHandStatus('unavailable');
+    els.installHint.textContent =
+      'تعذر تحميل مكتبة تتبع اليد. يمكن اللعب باللمس/الفأرة. ' +
+      'لدعم التتبع بدون إنترنت: ضع ملفات MediaPipe في مجلد vendor/mediapipe.';
+    return false;
+  }
+
+  // ── Step 3: initialise Hands ───────────────────────────────────
+  try {
+    mpHands = new window.Hands({
+      locateFile: file => {
+        // Try local vendor first; if it 404s, the browser will use the CDN script
+        // already loaded. We return the CDN path here as the definitive source.
+        const localPath = `./vendor/mediapipe/hands/${file}`;
+        // Detect if local vendor exists: return local, MediaPipe falls back itself.
+        // For maximum compat we return the same CDN base that was successfully loaded.
+        return `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4/${file}`;
+      }
+    });
+
+    mpHands.setOptions({
+      maxNumHands:            1,
+      modelComplexity:        1,    // 0=lite, 1=full — full is more accurate
+      minDetectionConfidence: 0.65, // Lower than default so it detects faster
+      minTrackingConfidence:  0.55, // Lower allows tracking through brief occlusions
+      selfieMode:             true  // Mirrors to match the mirrored video element
+    });
+
+    mpHands.onResults(onHandResults);
+
+    mpCamera = new window.Camera(els.video, {
+      onFrame: async () => {
+        // Guard: only send frame if camera mode is active and everything is alive
+        if (state.inputMode === 'camera' && mpHands && cameraActive) {
+          await mpHands.send({ image: els.video });
+        }
+      },
+      width:  640,
+      height: 480
+    });
+
+    await mpCamera.start();
+    setHandStatus('ready');
+    return true;
+  } catch (err) {
+    console.warn('[MediaPipe] Start failed:', err);
+    setInputMode('pointer');
+    setHandStatus('unavailable');
+    els.installHint.textContent = 'حصل خطأ في تشغيل تتبع اليد. يمكنك متابعة اللعب باللمس/الفأرة.';
+    // Schedule a silent retry after 8 seconds
+    cameraRetryTimer = setTimeout(() => initCamera(true), 8000);
+    return false;
+  }
+}
+
+// ─────────────────────────────────────────────
+// Calibration
+// ─────────────────────────────────────────────
+let calibRunning = false;
+
+function startCalibration() {
+  if (!settings.useCamera) {
+    showFeedback('المعايرة تعمل فقط عند تفعيل الكاميرا', 'bad'); return;
+  }
+  if (calibRunning) return;
+  calibRunning = true;
+
+  els.calibOverlay.classList.remove('hidden');
+  els.calibBar.style.width = '0%';
+  els.calibMsg.textContent = 'حرّك السبابة في جميع الاتجاهات...';
+
+  // Reset calib range accumulators
+  let cMinX = 1, cMaxX = 0, cMinY = 1, cMaxY = 0;
+  let samplesWithHand = 0;
+  const REQUIRED_SAMPLES = 60; // ~2s at 30fps
+
+  const CALIB_DURATION_MS = 5000;
+  const start = performance.now();
+
+  const tick = setInterval(() => {
+    const elapsed  = performance.now() - start;
+    const progress = Math.min(100, Math.round((elapsed / CALIB_DURATION_MS) * 100));
+    els.calibBar.style.width = progress + '%';
+
+    // Sample current raw normalised position
+    if (state.hasTracking) {
+      const nx = state.rawNormX;
+      const ny = state.rawNormY;
+      cMinX = Math.min(cMinX, nx);
+      cMaxX = Math.max(cMaxX, nx);
+      cMinY = Math.min(cMinY, ny);
+      cMaxY = Math.max(cMaxY, ny);
+      samplesWithHand++;
+      els.calibMsg.textContent = `يُسجَّل... (${samplesWithHand} إطار)`;
+    } else {
+      els.calibMsg.textContent = 'في انتظار رؤية اليد...';
+    }
+
+    if (elapsed >= CALIB_DURATION_MS) {
+      clearInterval(tick);
+      calibRunning = false;
+
+      // Apply safe minimums: if range too small, fall back to defaults
+      const validX = (cMaxX - cMinX) >= 0.18 && samplesWithHand >= 20;
+      const validY = (cMaxY - cMinY) >= 0.12 && samplesWithHand >= 20;
+
+      state.calib = {
+        minX: validX ? Math.max(0, cMinX - 0.03) : 0.1,
+        maxX: validX ? Math.min(1, cMaxX + 0.03) : 0.9,
+        minY: validY ? Math.max(0, cMinY - 0.03) : 0.1,
+        maxY: validY ? Math.min(1, cMaxY + 0.03) : 0.9
+      };
+      state.calibrated = true;
+      saveJSON(CALIB_KEY, state.calib);
+      // Reset smoothing so the new calibration takes effect cleanly
+      resetSmoothingState();
+
+      els.calibOverlay.classList.add('hidden');
+      showFeedback(
+        samplesWithHand >= 20 ? '✅ تمت المعايرة بنجاح' : '⚠️ معايرة افتراضية (لم تُرَ اليد كفاية)',
+        samplesWithHand >= 20 ? 'gold' : 'bad'
+      );
+    }
+  }, 80);
+}
+
+function restoreCalibration() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(CALIB_KEY) || 'null');
+    if (saved && typeof saved.minX === 'number') {
+      state.calib = saved;
+      state.calibrated = true;
+    }
+  } catch {}
+}
+
+// ─────────────────────────────────────────────
+// Settings helpers
+// ─────────────────────────────────────────────
+function setInputMode(mode, announce = false) {
+  state.inputMode  = (mode === 'camera') ? 'camera' : 'pointer';
+  settings.useCamera = state.inputMode === 'camera';
+  saveSettings();
+  applyVisualSettings();
+  if (announce) {
+    showFeedback(
+      state.inputMode === 'camera' ? 'تم تفعيل التحكم بالكاميرا' : 'تم تفعيل التحكم باللمس/الفأرة',
+      'gold'
+    );
+  }
+}
+
+function applyVisualSettings() {
+  els.video.style.opacity = settings.showCamera ? '0.18' : '0';
+  document.body.classList.toggle('board-mode', settings.boardMode);
+  state.inputMode        = settings.useCamera ? 'camera' : 'pointer';
+  els.controlStatus.textContent =
+    settings.useCamera ? '🎮 التحكم: كاميرا' : '🎮 التحكم: لمس/فأرة';
+  els.modeBox.textContent  = 'النمط: ' + (settings.mode === 'training' ? 'تدريب' : 'تحدي');
+  els.levelBox.textContent = 'المستوى: ' + ({ easy:'سهل', medium:'متوسط', hard:'صعب' })[settings.level];
+  els.toggleCameraBtn.textContent = settings.showCamera ? 'إخفاء الكاميرا' : 'إظهار الكاميرا';
+  if (els.toggleInputBtn)
+    els.toggleInputBtn.textContent = settings.useCamera ? 'التحكم: كاميرا' : 'التحكم: لمس/فأرة';
+}
+
+function syncSettingsToUI() {
+  els.modeSelect.value          = settings.mode;
+  els.levelSelect.value         = settings.level;
+  els.useCameraCheck.checked    = settings.useCamera;
+  els.soundCheck.checked        = settings.sound;
+  els.cameraVisibleCheck.checked = settings.showCamera;
+  els.boardModeCheck.checked    = settings.boardMode;
+
+  els.teacherMode.value           = settings.mode;
+  els.teacherLevel.value          = settings.level;
+  els.teacherUseCamera.checked    = settings.useCamera;
+  els.teacherCameraVisible.checked = settings.showCamera;
+  els.teacherBoardMode.checked    = settings.boardMode;
+  els.teacherSound.checked        = settings.sound;
+
+  applyVisualSettings();
+}
+
+async function syncCameraWithSettings(force = false) {
+  if (settings.useCamera) {
+    await initCamera(force);
+  } else {
+    stopCamera();
+    setCamStatus('متوقفة');
+    setHandStatus('fallback');
+  }
+}
+
+// ─────────────────────────────────────────────
+// Audio
+// ─────────────────────────────────────────────
+let audioCtx = null;
+function getAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+function beep(freq = 600, dur = 0.09, type = 'sine', vol = 0.03) {
+  if (!settings.sound) return;
+  try {
+    const ac   = getAudio();
+    const osc  = ac.createOscillator();
+    const gain = ac.createGain();
+    osc.type = type; osc.frequency.value = freq;
+    gain.gain.value = vol;
+    osc.connect(gain); gain.connect(ac.destination);
+    osc.start(); osc.stop(ac.currentTime + dur);
+  } catch {}
+}
+
+// ─────────────────────────────────────────────
+// Feedback overlay
+// ─────────────────────────────────────────────
+function showFeedback(msg, kind = 'ok') {
+  const el = els.feedback;
+  el.textContent = msg;
+  el.className   = 'feedback show ' + kind;
+  clearTimeout(showFeedback._t);
+  showFeedback._t = setTimeout(() => el.className = 'feedback', 1400);
+}
+
+// ─────────────────────────────────────────────
+// Game logic helpers
+// ─────────────────────────────────────────────
+function clamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
+
+function teacherExplanation(type) {
+  if (type === 'اسم') return 'اسم لأنه يدل على إنسان أو شيء أو مكان.';
+  if (type === 'فعل') return 'فعل لأنه يدل على حدث أو عمل.';
+  return 'حرف لأنه لا يكتمل معناه وحده.';
+}
+
+function nextWordData() {
+  const bank  = WORD_BANKS[settings.level];
+  const types = Object.keys(bank);
+  const type  = types[Math.floor(Math.random() * types.length)];
+  const arr   = bank[type];
+  return { type, word: arr[Math.floor(Math.random() * arr.length)] };
+}
+
+function zoneRects() {
+  const h = settings.boardMode ? 130 : 108;
+  const w = cw / 3;
+  return ZONES.map((z, i) => ({ ...z, x:(2-i)*w, y:ch-h, w, h }));
+}
+
+function spawnWord() {
+  const slot = state.pool.find(w => !w.active);
+  if (!slot) return;
+  const data   = nextWordData();
+  const margin = 90;
+  slot.active   = true;
+  slot.word     = data.word;
+  slot.type     = data.type;
+  slot.x        = margin + Math.random() * Math.max(100, cw - margin * 2);
+  slot.y        = -60;
+  slot.vy       = settings.level === 'easy' ? 70 : settings.level === 'medium' ? 95 : 120;
+  slot.dragging = false;
+  slot.dying    = false;
+  slot.opacity  = 1;
+}
+
+function makeBurst(x, y, color, count = 10) {
+  let made = 0;
+  for (const p of state.particles) {
+    if (p.active) continue;
+    p.active = true; p.x = x; p.y = y;
+    const ang = Math.random() * Math.PI * 2;
+    const sp  = 60 + Math.random() * 140;
+    p.vx = Math.cos(ang) * sp;
+    p.vy = Math.sin(ang) * sp - 30;
+    p.life = p.maxLife = 0.5 + Math.random() * 0.35;
+    p.r     = 2 + Math.random() * 5;
+    p.color = color;
+    if (++made >= count) break;
+  }
+}
+
+function classify(word, zoneKey) {
+  word.dying    = true;
+  word.dragging = false;
+  if (word.type === zoneKey) {
+    const comboBonus = state.combo >= 5 ? 10 : state.combo >= 3 ? 5 : 0;
+    state.combo++;
+    state.bestCombo = Math.max(state.bestCombo, state.combo);
+    state.score    += 10 + comboBonus;
+    state.correct++;
+    showFeedback(comboBonus ? `✅ صحيح +${10+comboBonus}` : '✅ صحيح +10', 'ok');
+    beep(650 + Math.min(state.combo * 20, 120));
+    makeBurst(word.x, word.y, '#06d6a0', 14);
+  } else {
+    state.combo = 0;
+    state.wrong++;
+    const explanation = teacherExplanation(word.type);
+    if (settings.mode === 'challenge') {
+      state.score = Math.max(0, state.score - 5);
+      state.lives--;
+    }
+    state.missed.push({ word:word.word, correct:word.type, chosen:zoneKey, explanation });
+    showFeedback(`❌ "${word.word}" ${explanation}`, 'bad');
+    beep(220, 0.12, 'square', 0.035);
+    makeBurst(word.x, word.y, '#ef476f', 12);
+  }
+  updateHud();
+  if (settings.mode === 'challenge' && state.lives <= 0) finishGame();
+}
+
+function finishGame() {
+  state.running = false;
+  state.over    = true;
+  persistedResults.highScore = Math.max(persistedResults.highScore, state.score);
+  persistedResults.sessions++;
+  persistedResults.totals.correct += state.correct;
+  persistedResults.totals.wrong   += state.wrong;
+  saveResults();
+
+  els.sumScore.textContent    = state.score;
+  els.sumCorrect.textContent  = state.correct;
+  els.sumWrong.textContent    = state.wrong;
+  els.sumBestCombo.textContent = state.bestCombo;
+  els.summaryTitle.textContent =
+    state.score >= 120 ? 'ممتاز جداً' :
+    state.score >= 70  ? 'أحسنت'      :
+    state.score >= 35  ? 'بداية جيدة' : 'استمر في التدريب';
+
+  const total = state.correct + state.wrong;
+  const acc   = total ? Math.round((state.correct / total) * 100) : 0;
+  els.analysisText.textContent =
+    `الدقة ${acc}%، أفضل نتيجة محفوظة ${persistedResults.highScore}، ` +
+    (state.missed.length
+      ? `أكثر ما يحتاج مراجعة: ${state.missed.slice(-1)[0].correct}.`
+      : 'لم تسجّل أخطاء في هذه الجولة.');
+
+  els.reviewList.innerHTML = state.missed.length
+    ? state.missed.slice(-8).map(m =>
+        `<div class="review-card">
+           <div><strong>${m.word}</strong></div>
+           <div>الصحيح: ${m.correct}</div>
+           <div style="font-size:.85rem;color:#c9d1ff">${m.explanation}</div>
+         </div>`
+      ).join('')
+    : '<div class="review-card">لا توجد أخطاء في هذه الجولة.</div>';
+
+  els.gameOverOverlay.classList.remove('hidden');
+}
+
+function resetRound() {
+  state.score=0; state.lives=5; state.combo=0; state.bestCombo=0;
+  state.running=false; state.paused=false; state.over=false;
+  state.correct=0; state.wrong=0; state.missed=[]; state.lastSpawn=0; state.handLostMs=0;
+  for (const w of state.pool)  { w.active=false; w.dragging=false; w.dying=false; w.opacity=1; }
+  for (const p of state.particles) { p.active=false; }
+  updateHud();
+}
+
+function startGame() {
+  resetRound();
+  state.running = true;
+  els.startOverlay.classList.add('hidden');
+  els.gameOverOverlay.classList.add('hidden');
+  showFeedback(settings.mode === 'training' ? 'ابدأ التدريب' : 'ابدأ التحدي', 'gold');
+}
+
+function updateHud() {
+  els.scoreDisplay.textContent = state.score;
+  els.comboDisplay.textContent = state.combo;
+  els.livesBox.textContent = settings.mode === 'challenge' ? `❤️ ${state.lives}` : '♾️ تدريب';
+}
+
+// ─────────────────────────────────────────────
+// Game loop
+// ─────────────────────────────────────────────
+let lastTs = performance.now();
+
+function gameStep(ts) {
+  const dt = clamp((ts - lastTs) / 1000, 0, 0.05); // cap at 50ms to avoid spiral-of-death
+  lastTs = ts;
+
+  // ── Tracking loss detection ──────────────────────────────────
+  if (state.inputMode === 'camera') {
+    const msSinceSeen = ts - (state.lastHandSeen || 0);
+
+    if (state.hasTracking && msSinceSeen > HOLD_DURATION_MS) {
+      // Grace period expired — officially mark as lost
+      state.hasTracking = false;
+      setHandStatus('lost');
+    }
+
+    if (!state.hasTracking) {
+      state.handLostMs += dt * 1000;
+      if (state.running && !state.paused && state.handLostMs > PAUSE_TRIGGER_MS) {
+        state.paused = true;
+        els.pauseOverlay.classList.remove('hidden');
+      }
+    } else {
+      state.handLostMs = 0;
+    }
+  }
+
+  // ── Game simulation ──────────────────────────────────────────
+  if (state.running && !state.paused) {
+    state.lastSpawn += dt;
+    const activeCount = state.pool.filter(w => w.active && !w.dying).length;
+    const spawnEvery  =
+      settings.mode === 'challenge'
+        ? (settings.level === 'easy' ? 1.8 : settings.level === 'medium' ? 1.4 : 1.1)
+        : (settings.level === 'easy' ? 2.1 : settings.level === 'medium' ? 1.7 : 1.4);
+
+    if (state.lastSpawn >= spawnEvery && activeCount < 3) {
+      spawnWord();
+      state.lastSpawn = 0;
+    }
+
+    const zones = zoneRects();
+
+    for (const w of state.pool) {
+      if (!w.active) continue;
+
+      if (w.dying) {
+        w.opacity -= dt * 3.2;
+        if (w.opacity <= 0) w.active = false;
+        continue;
+      }
+
+      const dx   = state.pointerX - w.x;
+      const dy   = state.pointerY - w.y;
+      const dist = Math.hypot(dx, dy);
+
+      // Pick up word if pointer is close enough and nothing else is being dragged
+      if (!state.pool.some(x => x.dragging) && state.pointerX > -100) {
+        const hitRadius = Math.max(55, (w.w || 90) * 0.5 + 15);
+        if (dist < hitRadius) w.dragging = true;
+      }
+
+      if (w.dragging) {
+        w.x = state.pointerX;
+        w.y = state.pointerY;
+        const targetZone = zones.find(z =>
+          w.x >= z.x && w.x <= z.x + z.w && w.y >= z.y
+        );
+        if (targetZone) classify(w, targetZone.key);
+      } else {
+        w.y += w.vy * dt;
+      }
+
+      // Word fell off screen
+      if (!w.dragging && w.y > ch + 70) {
+        w.dying  = true;
+        state.combo = 0;
+        if (settings.mode === 'challenge') {
+          state.lives--;
+          state.wrong++;
+          state.missed.push({
+            word:w.word, correct:w.type, chosen:'ضاعت',
+            explanation: teacherExplanation(w.type)
+          });
+          if (state.lives <= 0) finishGame();
+        }
+        showFeedback(`ضاعت "${w.word}"`, 'bad');
+        updateHud();
+      }
+    }
+
+    for (const p of state.particles) {
+      if (!p.active) continue;
+      p.life -= dt;
+      if (p.life <= 0) { p.active = false; continue; }
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.vy += 180 * dt;
+    }
+  }
+
+  draw();
+  requestAnimationFrame(gameStep);
+}
+
+// ─────────────────────────────────────────────
+// Draw
+// ─────────────────────────────────────────────
+function roundRect(cx, x, y, w, h, r) {
+  cx.beginPath();
+  cx.moveTo(x+r, y);
+  cx.arcTo(x+w, y,   x+w, y+h, r);
+  cx.arcTo(x+w, y+h, x,   y+h, r);
+  cx.arcTo(x,   y+h, x,   y,   r);
+  cx.arcTo(x,   y,   x+w, y,   r);
+  cx.closePath();
+}
+
+function drawWord(w) {
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, w.opacity);
+  const fontSize = settings.boardMode ? 34 : 28;
+  ctx.font = `900 ${fontSize}px Tahoma, Arial, sans-serif`;
+  const tw = ctx.measureText(w.word).width;
+  w.w = tw + 38; w.h = fontSize + 26;
+  const x = w.x - w.w / 2, y = w.y - w.h / 2;
+
+  ctx.fillStyle = w.dragging ? '#18497f' : '#0f3460';
+  roundRect(ctx, x, y, w.w, w.h, 16); ctx.fill();
+  ctx.lineWidth   = w.dragging ? 4 : 2;
+  ctx.strokeStyle = w.dragging ? '#fff' : 'rgba(255,255,255,.2)';
+  ctx.stroke();
+  ctx.fillStyle    = '#fff';
+  ctx.textAlign    = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(w.word, w.x, w.y + 2);
+  ctx.restore();
+}
+
+function draw() {
+  ctx.clearRect(0, 0, cw, ch);
+
+  // Drop zones
+  const zones = zoneRects();
+  for (const z of zones) {
+    const dragged = state.pool.find(w => w.dragging);
+    const hover   = dragged && dragged.x >= z.x && dragged.x <= z.x+z.w && dragged.y >= z.y;
+    ctx.save();
+    ctx.fillStyle = hover ? z.color : z.color + 'cc';
+    roundRect(ctx, z.x+4, z.y+4 - (hover?12:0), z.w-8, z.h-8, 18);
+    ctx.fill();
+    ctx.lineWidth   = hover ? 4 : 2;
+    ctx.strokeStyle = hover ? '#fff' : 'rgba(255,255,255,.15)';
+    ctx.stroke();
+    ctx.fillStyle    = z.text;
+    ctx.font         = `900 ${settings.boardMode ? 44 : 36}px Tahoma, Arial, sans-serif`;
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(z.label, z.x + z.w/2, z.y + z.h/2 - (hover?12:0));
+    ctx.restore();
+  }
+
+  // Words
+  for (const w of state.pool) if (w.active) drawWord(w);
+
+  // Particles
+  for (const p of state.particles) {
+    if (!p.active) continue;
+    ctx.save();
+    ctx.globalAlpha = p.life / p.maxLife;
+    ctx.fillStyle   = p.color;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+
+  // Pointer cursor
+  if (state.pointerX > -100) {
+    const isDragging = state.pool.some(w => w.dragging);
+    // Outer ring — fades when tracking is shaky
+    ctx.save();
+    ctx.beginPath(); ctx.arc(state.pointerX, state.pointerY, 22, 0, Math.PI*2);
+    ctx.fillStyle   = 'rgba(255,255,255,.15)'; ctx.fill();
+    ctx.strokeStyle = isDragging ? '#06d6a0' : (state.hasTracking ? '#fff' : '#aaa');
+    ctx.lineWidth   = isDragging ? 4 : 3;
+    ctx.stroke();
+    // Inner dot
+    ctx.beginPath(); ctx.arc(state.pointerX, state.pointerY, 7, 0, Math.PI*2);
+    ctx.fillStyle = isDragging ? '#06d6a0' : '#ffe66d'; ctx.fill();
+    ctx.restore();
+  }
+}
+
+// ─────────────────────────────────────────────
+// Touch / mouse fallback
+// ─────────────────────────────────────────────
+function pointerMove(clientX, clientY) {
+  const rect     = els.gameCanvas.getBoundingClientRect();
+  state.pointerX = clamp(clientX - rect.left,  0, rect.width);
+  state.pointerY = clamp(clientY - rect.top,   0, rect.height);
+  state.hasTracking = true;
+}
+
+window.addEventListener('pointermove', e => {
+  if (state.inputMode !== 'pointer') return;
+  pointerMove(e.clientX, e.clientY);
+});
+window.addEventListener('pointerdown', e => {
+  if (state.inputMode !== 'pointer') return;
+  pointerMove(e.clientX, e.clientY);
+});
+window.addEventListener('pointerup', () => {
+  for (const w of state.pool) w.dragging = false;
+});
+
+// ─────────────────────────────────────────────
+// Button event listeners
+// ─────────────────────────────────────────────
+els.toggleCameraBtn.addEventListener('click', () => {
+  settings.showCamera = !settings.showCamera;
+  saveSettings(); applyVisualSettings();
+});
+
+els.toggleTeacherBtn.addEventListener('click', () => {
+  els.teacherOverlay.classList.remove('hidden');
+});
+
+els.toggleBoardBtn.addEventListener('click', () => {
+  settings.boardMode = !settings.boardMode;
+  saveSettings(); applyVisualSettings(); resize();
+});
+
+els.installBtn.addEventListener('click', async () => {
+  if (!window._deferredPrompt) return;
+  const result = await window._deferredPrompt.prompt();
+  window._deferredPrompt = null;
+  if (result?.outcome === 'accepted') els.installBtn.classList.add('hidden');
+});
+
+els.toggleInputBtn.addEventListener('click', async () => {
+  if (settings.useCamera) {
+    setInputMode('pointer', true);
+    stopCamera();
+    setCamStatus('متوقفة');
+    setHandStatus('fallback');
+  } else {
+    setInputMode('camera', true);
+    await initCamera(true);
+  }
+});
+
+els.calibrateBtn.addEventListener('click', startCalibration);
+els.startBtn.addEventListener('click', startGame);
+
+els.resumeBtn.addEventListener('click', () => {
+  state.paused = false;
+  els.pauseOverlay.classList.add('hidden');
+});
+
+els.switchToPointerBtn.addEventListener('click', () => {
+  setInputMode('pointer', false);
+  state.paused = false;
+  els.pauseOverlay.classList.add('hidden');
+  showFeedback('تم تفعيل التحكم باللمس/الفأرة', 'gold');
+});
+
+els.restartBtn.addEventListener('click', () => {
+  els.gameOverOverlay.classList.add('hidden');
+  startGame();
+});
+
+els.closeSummaryBtn.addEventListener('click', () => {
+  els.gameOverOverlay.classList.add('hidden');
+  els.startOverlay.classList.remove('hidden');
+});
+
+// Settings panel (start screen)
+function applyStartPanel() {
+  settings.mode       = els.modeSelect.value;
+  settings.level      = els.levelSelect.value;
+  settings.useCamera  = els.useCameraCheck.checked;
+  settings.sound      = els.soundCheck.checked;
+  settings.showCamera = els.cameraVisibleCheck.checked;
+  settings.boardMode  = els.boardModeCheck.checked;
+  saveSettings(); syncSettingsToUI(); resize();
+  syncCameraWithSettings(false);
+}
+['modeSelect','levelSelect','useCameraCheck','soundCheck','cameraVisibleCheck','boardModeCheck']
+  .forEach(id => document.getElementById(id).addEventListener('change', applyStartPanel));
+
+// Teacher panel
+els.teacherSaveBtn.addEventListener('click', async () => {
+  settings.mode       = els.teacherMode.value;
+  settings.level      = els.teacherLevel.value;
+  settings.useCamera  = els.teacherUseCamera.checked;
+  settings.showCamera = els.teacherCameraVisible.checked;
+  settings.boardMode  = els.teacherBoardMode.checked;
+  settings.sound      = els.teacherSound.checked;
+  saveSettings(); syncSettingsToUI(); resize();
+  await syncCameraWithSettings(true);
+  els.teacherOverlay.classList.add('hidden');
+  showFeedback('تم حفظ إعدادات المعلم', 'gold');
+});
+
+els.teacherResetStatsBtn.addEventListener('click', () => {
+  persistedResults = { highScore:0, sessions:0, totals:{ correct:0, wrong:0 } };
+  saveResults();
+  showFeedback('تم تصفير النتائج المحفوظة', 'bad');
+});
+
+els.teacherCloseBtn.addEventListener('click', () => els.teacherOverlay.classList.add('hidden'));
+
+// ─────────────────────────────────────────────
+// PWA / Service Worker
+// ─────────────────────────────────────────────
+function registerPWA() {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js')
+      .catch(err => console.warn('[SW] Register failed:', err));
+  }
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    window._deferredPrompt = e;
+    els.installBtn.classList.remove('hidden');
+    els.installHint.textContent = 'التطبيق جاهز للتثبيت من هذا الزر أو من زر المتصفح.';
+  });
+  window.addEventListener('appinstalled', () => {
+    window._deferredPrompt = null;
+    els.installBtn.classList.add('hidden');
+    els.installHint.textContent = 'تم تثبيت التطبيق بنجاح.';
+  });
+}
+
+// ─────────────────────────────────────────────
+// Boot
+// ─────────────────────────────────────────────
+async function boot() {
+  syncSettingsToUI();
+  restoreCalibration();
+  resize();
+  registerPWA();
+  updateHud();
+
+  // Populate start screen stats
+  const totalWords = Object.values(WORD_BANKS[settings.level])
+    .reduce((n, arr) => n + arr.length, 0);
+  if (els.startHighScore)  els.startHighScore.textContent  = `أفضل نتيجة محفوظة: ${persistedResults.highScore}`;
+  if (els.startWordsInfo)  els.startWordsInfo.textContent  = `عدد كلمات هذا المستوى: ${totalWords}`;
+
+  await syncCameraWithSettings(true);
+  requestAnimationFrame(gameStep);
+}
+
+boot();
+</script>
+</body>
+</html>
